@@ -1384,6 +1384,8 @@ func _show_synthesis_panel() -> void:
 
 		if can_synth:
 			var brother: Dictionary = same[0]
+			if brother.get("uid") == uid and same.size() >= 2:
+				brother = same[1]
 			var bro_uid: String = brother.get("uid", "")
 			cell.pressed.connect(func():
 				_show_synth_confirm(modal, uid, bro_uid, def, rarity, col)
