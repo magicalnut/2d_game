@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" uid="uid://bm3kin8kksrq2" path="res://Assets/Sprites/Pickups/health_bottle.png" id="1_tex"]
+[ext_resource type="Script" path="res://Assets/Scripts/health_bottle.gd" id="2_script"]
+
+[node name="HealthBottle" type="Area2D"]
+scale = Vector2(2, 2)
+script = ExtResource("2_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_tex")

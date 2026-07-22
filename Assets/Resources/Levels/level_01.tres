@@ -1,0 +1,41 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Assets/Scripts/level_data.gd" id="1_level_data"]
+
+[resource]
+script = ExtResource("1_level_data")
+level_id = "level_01"
+display_name = "清理外围"
+description = "消灭外围游荡的敌人，为据点清理安全区。"
+unlock_requirement = ""
+time_limit = 0.0
+difficulty_multiplier = 0.8
+stages = [{
+"stage_id": "stage_1",
+"name": "斥候清剿",
+"objective_type": "kill_count",
+"target_value": 15.0,
+"enemy_types": ["fox"],
+"enemy_count": 15,
+"spawn_interval": 1.2,
+"difficulty_multiplier": 0.7,
+"rewards": {
+"exp": 30
+}
+}, {
+"stage_id": "stage_2",
+"name": "壮汉来袭",
+"objective_type": "kill_count",
+"target_value": 5.0,
+"enemy_types": ["mario"],
+"enemy_count": 5,
+"spawn_interval": 2.0,
+"difficulty_multiplier": 1.0,
+"rewards": {
+"exp": 50
+}
+}]
+rewards = {
+"diamonds": 50,
+"first_clear_gear": "rune_of_wind"
+}

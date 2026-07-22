@@ -1,0 +1,29 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Assets/Scripts/level_data.gd" id="1_level_data"]
+
+[resource]
+script = ExtResource("1_level_data")
+level_id = "level_02"
+display_name = "坚守阵地"
+description = "在源源不断敌潮中存活 60 秒。"
+unlock_requirement = "level_01"
+time_limit = 90.0
+difficulty_multiplier = 1.0
+stages = [{
+"stage_id": "stage_1",
+"name": "死守 60 秒",
+"objective_type": "survive_time",
+"target_value": 60.0,
+"enemy_types": ["fox", "agent"],
+"enemy_count": 40,
+"spawn_interval": 0.8,
+"difficulty_multiplier": 1.0,
+"rewards": {
+"exp": 80
+}
+}]
+rewards = {
+"diamonds": 80,
+"first_clear_gear": "amulet_of_vitality"
+}
