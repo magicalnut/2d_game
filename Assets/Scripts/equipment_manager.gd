@@ -9,64 +9,64 @@ const GEAR_DB: Dictionary = {
 	"rune_of_fire": {
 		"slot": "rune", "name": "烈焰符文", "rarity": 1, "max_level": 3,
 		"base_stats": {"atk_bonus": 4}, "growth_stats": {"atk_bonus": 2},
-		"flavor": "灼烧敌人的意志。"
+		"flavor": "注入火焰之力，直接提升攻击力。"
 	},
 	"rune_of_wind": {
 		"slot": "rune", "name": "疾风符文", "rarity": 1, "max_level": 3,
 		"base_stats": {"atk_bonus": 2, "projectile_speed": 0.10},
 		"growth_stats": {"atk_bonus": 1, "projectile_speed": 0.05},
-		"flavor": "让子弹飞得更快。"
+		"flavor": "子弹飞行速度提升，命中更迅速。"
 	},
 	# 护符（防御）
 	"amulet_of_vitality": {
 		"slot": "amulet", "name": "生命护符", "rarity": 1, "max_level": 3,
 		"base_stats": {"max_hp_bonus": 15}, "growth_stats": {"max_hp_bonus": 10},
-		"flavor": "多一份血量，多一份容错。"
+		"flavor": "增加最大生命值，容错率更高。"
 	},
 	"amulet_of_stone": {
 		"slot": "amulet", "name": "石肤护符", "rarity": 1, "max_level": 3,
 		"base_stats": {"max_hp_bonus": 8, "def_bonus": 0.05},
 		"growth_stats": {"max_hp_bonus": 5, "def_bonus": 0.03},
-		"flavor": "像石头一样硬。"
+		"flavor": "增加最大生命值，并减少受到的伤害。"
 	},
 	# 药剂（简化：被动常驻）
 	"potion_of_rage": {
 		"slot": "potion", "name": "狂怒药剂", "rarity": 1, "max_level": 3,
 		"base_stats": {"atk_bonus": 3}, "growth_stats": {"atk_bonus": 2},
-		"flavor": "怒气常驻，无需饮用。"
+		"flavor": "怒气化为力量，永久提升攻击力。"
 	},
 	# 圣物（机制）
 	"relic_of_hunger": {
 		"slot": "relic", "name": "贪婪圣物", "rarity": 1, "max_level": 3,
 		"base_stats": {"pickup_radius": 20.0, "exp_bonus": 0.05},
 		"growth_stats": {"pickup_radius": 10.0, "exp_bonus": 0.03},
-		"flavor": "经验球会主动找你。"
+		"flavor": "扩大拾取范围，并提升经验获取效率。"
 	},
 	# 宠物（辅助）
 	"pet_wisp": {
 		"slot": "pet", "name": "精灵光球", "rarity": 1, "max_level": 3,
 		"base_stats": {"move_speed_bonus": 12.0, "pickup_radius": 15.0},
 		"growth_stats": {"move_speed_bonus": 8.0, "pickup_radius": 10.0},
-		"flavor": "小精灵绕着脚尖飞舞，帮你拾取遗漏的经验球。"
+		"flavor": "提升移动速度，并扩大拾取范围。"
 	},
 	"pet_hound": {
 		"slot": "pet", "name": "猎犬幼崽", "rarity": 1, "max_level": 3,
 		"base_stats": {"atk_bonus": 2, "move_speed_bonus": 8.0},
 		"growth_stats": {"atk_bonus": 2, "move_speed_bonus": 5.0},
-		"flavor": "虽然还没断奶，但咬起敌人来毫不含糊。"
+		"flavor": "提升攻击力和移动速度。"
 	},
 	# 信物（幸运）
 	"token_luck": {
 		"slot": "token", "name": "幸运币", "rarity": 1, "max_level": 3,
 		"base_stats": {"exp_bonus": 0.08, "projectile_speed": 0.06},
 		"growth_stats": {"exp_bonus": 0.04, "projectile_speed": 0.04},
-		"flavor": "正面多经验，反面多速度。"
+		"flavor": "提升经验获取效率和子弹飞行速度。"
 	},
 	"token_haste": {
 		"slot": "token", "name": "疾风纹章", "rarity": 1, "max_level": 3,
 		"base_stats": {"move_speed_bonus": 15.0, "projectile_speed": 0.08},
 		"growth_stats": {"move_speed_bonus": 10.0, "projectile_speed": 0.05},
-		"flavor": "风精灵的祝福——跑得快，打得更快。"
+		"flavor": "提升移动速度和子弹飞行速度。"
 	}
 }
 
