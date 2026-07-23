@@ -75,6 +75,19 @@ var _spiral_dmg: float = 1.0
 
 # 召唤
 var _summon_n: int = 2
+# 新版螺旋（持续发射 + 独立冷却）——由 def["spiral_duration"] 激活
+var _spiral_duration: float = 5.0
+var _spiral_cooldown: float = 5.0
+var _spiral_cooldown_timer: float = 0.0
+var _spiral_bullets: int = 36
+# 弯刀弹幕（wave）：弧形子弹像弯刀一样射向玩家
+var _wave_cooldown: float = 3.0
+var _wave_cooldown_timer: float = 0.0
+var _wave_bullets: int = 10
+var _wave_angle: float = 100.0
+var _wave_speed: float = 280.0
+var _wave_dmg: float = 1.0
+var _wave_dir: Vector2 = Vector2.RIGHT
 
 # 连射（burst，远程 BOSS 狂暴时朝玩家持续扫射）
 var _burst_t: float = 0.0
@@ -89,10 +102,34 @@ var _laser_dir: Vector2 = Vector2.RIGHT
 var _laser_range: float = 800.0
 var _laser_width: float = 40.0
 var _laser_t: float = 0.0
+# 新版激光（长方形虚线预警 → 瞬发伤害）——由 def["laser_telegraph"] 激活
+var _laser_telegraph_total: float = 1.7
+var _laser_warning_dur: float = 1.0
+var _laser_react_dur: float = 0.7
+var _laser_length: float = 10000.0
+var _laser_damage: float = 5.0
+var _laser_cooldown: float = 3.0
+var _laser_cooldown_timer: float = 0.0
+var _laser_use_new: bool = false
 
 # 预警绘制
 var _tele_radius: float = 520.0
 var _ring_count: int = 36
+# distance_ring AI 模式（由 def["ai_mode"] 激活）——自动环形弹幕 + 定时冲撞 + 距离狂暴
+var _ai_mode: String = ""
+var _ring_distance: float = 500.0
+var _ring_close_interval: float = 1.5
+var _ring_far_interval: float = 1.0
+var _ring_close_speed: float = 120.0
+var _ring_far_speed: float = 180.0
+var _ring_close_dmg: float = 0.5
+var _ring_far_dmg: float = 1.0
+var _ring_auto_count: int = 36
+var _charge_auto_interval: float = 5.0
+var _charge_auto_distance: float = 700.0
+var _ring_auto_timer: float = 0.0
+var _charge_auto_timer: float = 0.0
+var _auto_ring_flash: float = 0.0
 
 @onready var body_sprite: Sprite2D = $Body
 @onready var anim_body: AnimatedSprite2D = $AnimatedBody
@@ -130,6 +167,46 @@ func _ready() -> void:
 		# 专属命中特效（可选）：有则加载，否则命中时复用全局受击火花
 		if def.has("impact") and ResourceLoader.exists(def["impact"]):
 			_impact_tex = load(def["impact"]) as Texture2D
+		# AI 模式配置（distance_ring 等）
+		if def.has("ai_mode"):
+			_ai_mode = def["ai_mode"]
+			if _ai_mode == "distance_ring":
+				_ring_distance = def.get("ring_distance", 500.0)
+				_ring_auto_count = def.get("ring_count", 36)
+				_ring_close_interval = def.get("ring_close_interval", 1.5)
+				_ring_close_speed = def.get("ring_close_speed", 120.0)
+				_ring_close_dmg = def.get("ring_close_dmg", 0.5)
+				_ring_far_interval = def.get("ring_far_interval", 1.0)
+				_ring_far_speed = def.get("ring_far_speed", 180.0)
+				_ring_far_dmg = def.get("ring_far_dmg", 1.0)
+				_charge_auto_interval = def.get("charge_interval", 5.0)
+				_charge_auto_distance = def.get("charge_distance", 700.0)
+				_ring_auto_timer = 1.5   # 出场后短暂缓冲再开始环形弹幕
+			# 弯刀弹幕参数
+			if def.has("wave_cooldown"):
+				_wave_cooldown = def["wave_cooldown"]
+				_wave_bullets = def.get("wave_bullets", 10)
+				_wave_angle = def.get("wave_angle", 100.0)
+				_wave_speed = def.get("wave_speed", 280.0)
+				_wave_dmg = def.get("wave_dmg", 1.0)
+				_charge_auto_timer = 3.0  # 出场后3秒首次冲撞
+			# 新版螺旋参数
+			if def.has("spiral_duration"):
+				_spiral_duration = def["spiral_duration"]
+			if def.has("spiral_cooldown"):
+				_spiral_cooldown = def["spiral_cooldown"]
+			if def.has("spiral_bullets"):
+				_spiral_bullets = def["spiral_bullets"]
+			# 新版激光参数（长方形虚线预警）
+			if def.has("laser_telegraph"):
+				_laser_use_new = true
+				_laser_telegraph_total = def["laser_telegraph"]
+				_laser_warning_dur = def.get("laser_warning", 1.0)
+				_laser_react_dur = def.get("laser_react", 0.7)
+				_laser_length = def.get("laser_length", 10000.0)
+				_laser_width = def.get("laser_width", 50.0)
+				_laser_damage = def.get("laser_damage", 5.0)
+				_laser_cooldown = def.get("laser_cooldown", 3.0)
 
 	# 本体贴图：有则加载，无则显示占位圆
 	if def.has("animated") and def["animated"]:
@@ -171,7 +248,7 @@ func _ready() -> void:
 
 func _setup_animated_frames(frames_dir: String) -> void:
 	var sf := SpriteFrames.new()
-	var paths := [frames_dir+"frame_01.png",frames_dir+"frame_02.png",frames_dir+"frame_03.png",frames_dir+"frame_04.png"]
+	var paths := [frames_dir+"frame_01.png",frames_dir+"frame_02.png",frames_dir+"frame_03.png",frames_dir+"frame_04.png",frames_dir+"frame_05.png"]
 	var loaded: Array = []
 	for fp in paths:
 		if ResourceLoader.exists(fp):
@@ -212,9 +289,13 @@ func _physics_process(delta: float) -> void:
 		_reset_telegraph_visual()
 		return
 
-	# 阶段切换（含狂暴）
+	# 距离环形 AI：按玩家距离决定环形弹幕节奏与狂暴状态
+	if _ai_mode == "distance_ring":
+		_distance_ring_tick(delta, player)
+
+	# 阶段切换（含狂暴）—— distance_ring 模式由距离驱动，跳过 HP 阶段
 	var ph: int = _phase()
-	if ph != _prev_phase:
+	if _ai_mode != "distance_ring" and ph != _prev_phase:
 		_on_phase_change(ph)
 		_prev_phase = ph
 
@@ -223,7 +304,7 @@ func _physics_process(delta: float) -> void:
 	_update_contact(delta, player)
 	_update_facing(player)
 
-	if _astate == AState.TELEGRAPH or _spiral_t > 0.0:
+	if _astate == AState.TELEGRAPH or _spiral_t > 0.0 or _ai_mode == "distance_ring":
 		queue_redraw()
 
 # —— 阶段 ——
@@ -255,7 +336,13 @@ func _update_attack(delta: float, player: Node2D) -> void:
 				_tele_progress = 0.0
 				_reset_telegraph_visual()
 		AState.RECOVER:
-			_atimer -= delta
+			# 冷却计时器（螺旋/激光用后即进入冷却）
+			if _spiral_cooldown_timer > 0.0:
+				_spiral_cooldown_timer -= delta
+			if _laser_cooldown_timer > 0.0:
+				_laser_cooldown_timer -= delta
+			if _wave_cooldown_timer > 0.0:
+				_wave_cooldown_timer -= delta
 			if _spiral_t > 0.0:
 				_update_spiral(delta)
 			if _burst_t > 0.0:
@@ -268,6 +355,46 @@ func _update_attack(delta: float, player: Node2D) -> void:
 			if _atimer <= 0.0:
 				_astate = AState.IDLE
 
+# —— 距离环形 AI：自动环形弹幕 + 定时冲撞 + 距离狂暴 ——
+func _distance_ring_tick(delta: float, player: Node2D) -> void:
+	if _dead: return
+	var dist: float = global_position.distance_to(player.global_position)
+	var is_close: bool = dist <= _ring_distance
+
+	# 根据距离切换狂暴状态（影响移速、外观、弹幕节奏）
+	if is_close and _enraged:
+		_enraged = false
+	elif not is_close and not _enraged:
+		_enraged = true
+
+	# 自动环形弹幕计时
+	_ring_auto_timer -= delta
+	if _ring_auto_timer <= 0.0:
+		var interval: float = _ring_close_interval if is_close else _ring_far_interval
+		var spd: float = _ring_close_speed if is_close else _ring_far_speed
+		var dmg: float = _ring_close_dmg if is_close else _ring_far_dmg
+		_fire_ring(_ring_auto_count, spd, dmg)
+		_ring_auto_timer = interval
+		_auto_ring_flash = 0.22  # 发射瞬间闪烁作为视觉反馈
+
+	_auto_ring_flash = max(_auto_ring_flash - delta, 0.0)
+
+	# 自动冲撞计时：到期立即执行，无视当前状态（确保冲撞稳定触发）
+	_charge_auto_timer -= delta
+	if _charge_auto_timer <= 0.0:
+		_charge_auto_timer = _charge_auto_interval
+		_pending = "charge"
+		_charge_dir = (player.global_position - global_position).normalized()
+		_charge_dist = _charge_auto_distance
+		_tele_kind = "charge"
+		_tele_dur = 0.8
+		_recover_dur = 1.5 * _cd_mul()
+		_astate = AState.TELEGRAPH
+		_tele = _tele_dur
+		_tele_progress = 0.0
+		# 清理进行中的螺旋/连射
+		_spiral_t = 0.0
+		_burst_t = 0.0
 func _choose_attack(player: Node2D) -> void:
 	var pool: Array = _attack_pool()
 	_pending = pool[randi() % pool.size()]
@@ -282,8 +409,8 @@ func _choose_attack(player: Node2D) -> void:
 			_tele_dur = 0.5; _recover_dur = 1.3 * _cd_mul()
 		"spiral":
 			_tele_kind = "spiral"
-			_spiral_arms = 4 + ph
-			_tele_dur = 0.7; _recover_dur = 2.0 * _cd_mul()
+			_spiral_arms = _spiral_bullets  # 每圈子弹数（阿基米德螺旋）
+			_tele_dur = 0.7; _recover_dur = _spiral_duration + 0.6  # 后摇=持续+余量
 		"charge":
 			_tele_kind = "charge"
 			_charge_dir = (player.global_position - global_position).normalized()
@@ -301,24 +428,49 @@ func _choose_attack(player: Node2D) -> void:
 		"burst":
 			_tele_kind = "burst"; _tele_radius = 300.0
 			_tele_dur = 0.7; _recover_dur = 1.9 * _cd_mul()
+		"wave":
+			_tele_kind = "wave"
+			_wave_dir = (player.global_position - global_position).normalized()
+			_tele_dur = 0.7; _recover_dur = 2.0 * _cd_mul()
+
 		"laser":
-			# 激光：锁定玩家位置 → 1秒后发射光束
 			_tele_kind = "laser"
 			_laser_dir = (player.global_position - global_position).normalized()
-			_laser_range = 800.0
-			_laser_width = 48.0
-			_tele_dur = 1.0; _recover_dur = 2.0 * _cd_mul()
+			if _laser_use_new:
+				_tele_dur = _laser_telegraph_total  # 1.7s 长方形虚线预警
+				_recover_dur = 0.5
+			else:
+				_laser_range = 800.0
+				_laser_width = 48.0
+				_tele_dur = 1.0; _recover_dur = 2.0 * _cd_mul()
 
 func _attack_pool() -> Array:
-	if def.has("pool1") or def.has("pool2"):
-		return (def.get("pool2") if _phase() == 2 else def.get("pool1")) as Array
-	if def.has("pool"):
-		return def["pool"] as Array
-	match _phase():
-		1: return ["ring", "aimed"]
-		_: return ["nova", "spiral", "charge", "aimed", "summon"]
+	var pool: Array
+	if _ai_mode == "distance_ring":
+		if def.has("pool"):
+			pool = def["pool"] as Array
+		else:
+			pool = ["aimed"]
+	elif def.has("pool1") or def.has("pool2"):
+		pool = (def.get("pool2") if _phase() == 2 else def.get("pool1")) as Array
+	elif def.has("pool"):
+		pool = def["pool"] as Array
+	else:
+		match _phase():
+			1: pool = ["ring", "aimed"]
+			_: pool = ["nova", "spiral", "charge", "aimed", "summon"]
+	# 冷却过滤：移除正在冷却中的攻击
+	if _spiral_cooldown_timer > 0.0 and pool.has("spiral"):
+		pool.erase("spiral")
+	if _laser_cooldown_timer > 0.0 and _laser_use_new and pool.has("laser"):
+		pool.erase("laser")
+	if _wave_cooldown_timer > 0.0 and pool.has("wave"):
+		pool.erase("wave")
+	return pool
 
 func _cd_mul() -> float:
+	if _ai_mode == "distance_ring":
+		return 0.8  # 距离环形模式固定冷却倍率
 	return 1.0 if _phase() == 1 else 0.55
 
 func _execute_attack(player: Node2D) -> void:
@@ -327,12 +479,13 @@ func _execute_attack(player: Node2D) -> void:
 		"ring":
 			_fire_ring(_ring_count, 200.0, 1.2)
 		"aimed":
-			_fire_aimed(4 + ph, 0.16, 330.0, 1.2, player)
+			_fire_aimed(4 + ph, 0.16, def.get("bullet_speed", 330.0), def.get("bullet_dmg", 1.2), player)
 		"spiral":
-			_spiral_t = 1.4; _spiral_acc = 0.0
+			_spiral_t = _spiral_duration; _spiral_acc = 0.0
 			_spiral_angle = randf_range(0.0, TAU)
 			_spiral_speed = 260.0; _spiral_dmg = 1.0
-			_spiral_arms = 4 + ph
+			_spiral_arms = _spiral_bullets
+			_spiral_cooldown_timer = _spiral_cooldown
 		"charge":
 			_charge_t = 0.42
 		"melee":
@@ -346,11 +499,20 @@ func _execute_attack(player: Node2D) -> void:
 		"burst":
 			_burst_t = 1.1 + 0.5 * float(ph)
 			_burst_acc = 0.0
-			_burst_speed = 340.0
-			_burst_dmg = 1.2
+			_burst_speed = def.get("bullet_speed", 340.0)
+			_burst_dmg = def.get("bullet_dmg", 1.2)
+		"wave":
+			_fire_wave(player)
+			_wave_cooldown_timer = _wave_cooldown
+
 		"laser":
-			_laser_t = 0.5   # 激光持续伤害0.5秒
-			_do_laser_hit(player)
+			if _laser_use_new:
+				_laser_t = 0.3  # 激光视觉残留
+				_do_laser_rect_hit(player)
+				_laser_cooldown_timer = _laser_cooldown
+			else:
+				_laser_t = 0.5   # 激光持续伤害0.5秒
+				_do_laser_hit(player)
 
 # —— 攻击原语 ——
 func _fire_bullet(dir: Vector2, speed: float, dmg: float) -> void:
@@ -361,6 +523,7 @@ func _fire_bullet(dir: Vector2, speed: float, dmg: float) -> void:
 	b.direction = dir.normalized()
 	b.speed = speed
 	b.damage = dmg
+	b.max_lifetime = 20.0  # Boss 弹幕全屏射程，不提前消失
 	# 可选：整体缩放根节点（会同时缩放碰撞盒，慎用）
 	if def.has("bullet_scale"):
 		b.scale = Vector2.ONE * float(def["bullet_scale"])
@@ -393,15 +556,39 @@ func _fire_aimed(n: int, spread: float, speed: float, dmg: float, player: Node2D
 		var t: float = float(i) - float(n - 1) / 2.0
 		var ang: float = base + t * spread
 		_fire_bullet(Vector2(cos(ang), sin(ang)), speed, dmg)
+# 弯刀弹幕：弧形子弹向玩家位置发射，像弯刀一样
+func _fire_wave(player: Node2D) -> void:
+	var base_ang: float = (player.global_position - global_position).angle()
+	var n: int = _wave_bullets
+	var spread: float = deg_to_rad(_wave_angle)  # 总扇形角度
+	for i in n:
+		var t: float = float(i) - float(n - 1) / 2.0
+		var ang: float = base_ang + t * spread / float(max(n - 1, 1))
+		var speed: float = _wave_speed
+		# 边缘子弹稍慢，形成弯刀弧度
+		var edge: float = abs(t) / max(float(n - 1) / 2.0, 1.0)
+		speed *= (1.0 - edge * 0.3)
+		_fire_bullet(Vector2(cos(ang), sin(ang)), speed, _wave_dmg)
 
 func _update_spiral(delta: float) -> void:
 	_spiral_t -= delta
 	_spiral_acc += delta
+	var progress: float = 1.0 - (_spiral_t / max(_spiral_duration, 0.1))  # 0→1 螺旋展开进度
+	var max_offset: float = 480.0  # 最大偏移半径（海螺壳效果）
 	while _spiral_acc >= _spiral_step:
 		_spiral_acc -= _spiral_step
 		for k in _spiral_arms:
 			var ang: float = _spiral_angle + float(k) * TAU / float(_spiral_arms)
-			_fire_bullet(Vector2(cos(ang), sin(ang)), _spiral_speed, _spiral_dmg)
+			var dir := Vector2(cos(ang), sin(ang))
+			var offset: float = progress * max_offset
+			if ENEMY_BULLET == null: continue
+			var b = ENEMY_BULLET.instantiate()
+			b.global_position = global_position + dir * offset  # 子弹从螺旋臂上射出
+			b.direction = dir
+			b.speed = _spiral_speed
+			b.damage = _spiral_dmg
+			b.max_lifetime = 20.0
+			get_parent().add_child(b)
 
 # 连射：后摇期内每 _burst_step 秒朝玩家当前方向打一发（实时追踪 + 轻微散布）
 func _update_burst(delta: float, player: Node2D) -> void:
@@ -490,6 +677,16 @@ func _do_laser_hit(player: Node2D) -> void:
 	if (to_p - _laser_dir * proj).length() > _laser_width: return
 	if player.has_method("take_damage"):
 		player.take_damage(touch_damage * 1.5, _laser_dir, KB_FORCE * 0.5)
+# 新版激光命中检测（长方形区域，瞬发伤害）
+func _do_laser_rect_hit(player: Node2D) -> void:
+	if not is_instance_valid(player): return
+	var to_p := player.global_position - global_position
+	var proj := to_p.dot(_laser_dir)
+	if proj <= 0.0 or proj > _laser_length: return
+	var perp_len := (to_p - _laser_dir * proj).length()
+	if perp_len > _laser_width * 0.5: return
+	if player.has_method("take_damage"):
+		player.take_damage(_laser_damage, _laser_dir, KB_FORCE * 0.3)
 
 func _spawn_impact(pos: Vector2) -> void:
 	if _impact_tex == null:
@@ -537,6 +734,18 @@ func _reset_telegraph_visual() -> void:
 		_tele_sprite.modulate.a = 1.0
 
 func _draw() -> void:
+	# 距离环形模式：常驻显示判定圈（红圈），方便玩家识别近/远边界
+	if _ai_mode == "distance_ring" and not _dead:
+		var alpha: float = 0.15
+		var col: Color = Color(1.0, 0.22, 0.18, alpha) if not _enraged else Color(1.0, 0.12, 0.04, alpha + 0.10)
+		draw_arc(Vector2.ZERO, _ring_distance, 0.0, TAU, 64, col, 2.5)
+		# 狂暴模式外圈额外一圈警示
+		if _enraged:
+			draw_arc(Vector2.ZERO, _ring_distance + 14.0, 0.0, TAU, 64, Color(1.0, 0.35, 0.1, 0.12), 1.5)
+	# 自动环形弹幕闪烁反馈
+	if _auto_ring_flash > 0.0:
+		var fa: float = _auto_ring_flash / 0.22
+		draw_arc(Vector2.ZERO, 210.0, 0.0, TAU, 36, Color(1.0, 0.5, 0.2, 0.50 * fa), 3.0)
 	if _astate != AState.TELEGRAPH:
 		return
 	var a: float = _tele_progress
@@ -563,11 +772,38 @@ func _draw() -> void:
 				Color(0.30, 0.60, 1.0, 0.20 + 0.40 * a), 4.0)
 			draw_arc(Vector2.ZERO, _tele_radius * (1.0 - a), 0.0, TAU, 48,
 				Color(0.45, 0.80, 1.0, 0.55), 2.0)
+
+		"wave":
+			var base_ang: float = _wave_dir.angle()
+			var half: float = deg_to_rad(_wave_angle * 0.5)
+			draw_arc(Vector2.ZERO, 130.0, base_ang - half, base_ang + half, 24,
+				Color(0.30, 0.80, 0.50, 0.30 + 0.45 * a), 5.0)
+
 		"laser":
-			var end := _laser_dir * _laser_range
-			# 预警线：从暗到亮
-			draw_line(Vector2.ZERO, end, Color(1.0, 0.2, 0.2, 0.15 + 0.6 * a), _laser_width * 0.5)
-			draw_line(Vector2.ZERO, end, Color(1.0, 0.4, 0.1, 0.6 * a), 3.0)
+			if _laser_use_new:
+				# 新版：红色长方形预警（高亮 + 半透明填充）
+				var t: float = _tele_progress
+				var warn_end: float = _laser_warning_dur / _laser_telegraph_total
+				var is_react: bool = t >= warn_end
+				var alpha: float = 0.55 + 0.3 * t
+				var col := Color(1.0, 0.12, 0.04, alpha)
+				if is_react:
+					col.a = 0.6 + 0.4 * sin(_tele * 14.0)
+				var hw := _laser_width * 0.5
+				var end := _laser_dir * _laser_length
+				var perp := Vector2(-_laser_dir.y, _laser_dir.x)
+				# 半透明红色填充
+				var pts := PackedVector2Array([Vector2.ZERO+perp*hw, end+perp*hw, end-perp*hw, Vector2.ZERO-perp*hw])
+				draw_colored_polygon(pts, Color(1.0, 0.06, 0.02, alpha * 0.20))
+				# 四条边框
+				draw_line(Vector2.ZERO + perp*hw, end + perp*hw, col, 4.0)
+				draw_line(Vector2.ZERO - perp*hw, end - perp*hw, col, 4.0)
+				draw_line(Vector2.ZERO - perp*hw, Vector2.ZERO + perp*hw, col, 4.0)
+				draw_line(end - perp*hw, end + perp*hw, col, 4.0)
+			else:
+				var end := _laser_dir * _laser_range
+				draw_line(Vector2.ZERO, end, Color(1.0, 0.2, 0.2, 0.15 + 0.6 * a), _laser_width * 0.5)
+				draw_line(Vector2.ZERO, end, Color(1.0, 0.4, 0.1, 0.6 * a), 3.0)
 
 # —— 受伤 / 死亡 ——
 func take_damage(amount: float) -> void:

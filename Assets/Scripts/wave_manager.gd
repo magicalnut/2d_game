@@ -39,29 +39,36 @@ const BOSS_SCENE := preload("res://Assets/Sprites/Bosses/boss.tscn")
 # 字段：name 名称 / tint 无素材时占位圆颜色 / hp 基础血量 / 其余见各 path/bullet/telegraph/impact 键
 #       speed 移速 / touch 接触伤害 / exp 经验 / pool 该BOSS偏好的攻击组（可选，缺省用通用池）
 const BOSS_DEFS: Array = [
-	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1000.0, "speed":68.0, "touch":4.0, "exp":45.0, "pool1":["melee"], "pool2":["melee","charge"],
+	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1000.0, "speed":200.0, "touch":4.0, "exp":45.0, "pool1":["melee"], "pool2":["melee","charge"],
 	 "path":"res://Assets/Sprites/Bosses/Boss1/Body/body.png",
 	 "bullet":"res://Assets/Sprites/Bosses/Boss1/Bullets/bullet.png",
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss1/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss1/Impacts/impact.png"},
-	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1500.0, "speed":58.0, "touch":4.0, "exp":45.0, "pool1":["aimed"], "pool2":["burst","aimed"],
+	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1300.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool1":["aimed"], "pool2":["burst","aimed"], "bullet_speed":400.0, "bullet_dmg":3.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss2/Body/body.png",
 	 "bullet":"res://Assets/Sprites/Bosses/Boss2/Bullets/bullet.png", "bullet_px":38.0, "bullet_angle_offset":PI/4,
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss2/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss2/Impacts/impact.png"},
 	# 用户Boss3 - 暗影守卫 (HP 500, 瞄准射击, 5帧动画)
-	{"name":"暗影守卫",   "tint":Color(0.20,0.50,0.30), "hp":500.0, "speed":60.0, "touch":2.5, "exp":30.0,
-	 "pool":["aimed"], "path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
+	{"name":"暗影守卫",   "tint":Color(0.20,0.50,0.30), "hp":500.0, "speed":80.0, "touch":2.5, "exp":30.0,
+	 "pool":["aimed"], "bullet_speed":400.0, "path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss3/Body/"},
-	# 用户Boss4 - 深渊领主 (HP 3000, 瞄准+环形, 4帧翅膀动画)
-	{"name":"深渊领主",   "tint":Color(0.70,0.30,0.20), "hp":700.0, "speed":70.0, "touch":3.5, "exp":38.0,
-	 "pool1":["aimed","ring"], "pool2":["aimed","ring","charge"],
+	# 用户Boss4 - 深渊领主 (HP 900, 距离环形AI, 4帧翅膀动画)
+		{"name":"深渊领主",   "tint":Color(0.70,0.30,0.20), "hp":600.0, "speed":80.0, "touch":3.5, "exp":38.0,
+	 "ai_mode":"distance_ring", "ring_distance":500.0, "ring_count":36,
+	 "ring_close_interval":1.5, "ring_close_speed":120.0, "ring_close_dmg":0.5,
+	 "ring_far_interval":1.0, "ring_far_speed":180.0, "ring_far_dmg":1.0,
+	 "charge_interval":5.0, "charge_distance":700.0, "pool":["aimed"],
 	 "path":"res://Assets/Sprites/Bosses/Boss4/Body/frame_01.png",
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss4/Body/"},
-	# 用户Boss5 - 虚空霸主 (HP 5000, 环形+螺旋+新星, 6帧动画)
-	{"name":"虚空霸主",   "tint":Color(0.50,0.20,0.60), "hp":900.0, "speed":55.0, "touch":4.0, "exp":45.0,
-	 "pool":["ring","spiral","nova","laser"], "path":"res://Assets/Sprites/Bosses/Boss5/Body/frame_01.png",
-	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss5/Body/"},
+		# 用户Boss5 - 虚空霸主 (HP 900, 环形+螺旋+新星+激光, 6帧动画)
+		{"name":"虚空霸主",   "tint":Color(0.50,0.20,0.60), "hp":900.0, "speed":100.0, "touch":4.0, "exp":45.0,
+		 "pool":["ring","wave","nova","laser"], "wave_cooldown":3.0, "wave_bullets":10, "wave_angle":100.0, "wave_speed":280.0, "wave_dmg":1.0,
+		 "spiral_duration":5.0, "spiral_cooldown":5.0, "spiral_bullets":36,
+		 "laser_telegraph":1.7, "laser_warning":1.0, "laser_react":0.7,
+		 "laser_length":10000.0, "laser_width":50.0, "laser_damage":5.0, "laser_cooldown":3.0,
+		 "path":"res://Assets/Sprites/Bosses/Boss5/Body/frame_01.png",
+		 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss5/Body/"},
 ]
 var _last_boss_index: int = -1
 var _boss_defeat_count: int = 0
