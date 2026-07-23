@@ -234,7 +234,7 @@ func _spawn_pistol(dir: Vector2, dmg: float, st: int, origin: Vector2 = Vector2.
 	var p := Area2D.new()
 	p.set_script(PROJ_SCRIPT)
 	p.direction = dir
-	p.speed = 560.0
+	p.speed = 1120.0
 	p.damage = dmg
 	p.max_lifetime = 2.5
 	p.tex = BULLET_TEX
@@ -255,7 +255,7 @@ func _spawn_laser(dir: Vector2, dmg: float) -> void:
 	var p := Area2D.new()
 	p.set_script(PROJ_SCRIPT)
 	p.direction = dir
-	p.speed = 720.0
+	p.speed = 1440.0
 	p.damage = dmg
 	p.max_lifetime = 2.0
 	p.tex = _laser_tex
@@ -403,7 +403,7 @@ func _spawn_firebomb(dir: Vector2, dmg: float, st: int) -> void:
 	var p := Area2D.new()
 	p.set_script(PROJ_SCRIPT)
 	p.direction = dir
-	p.speed = 420.0
+	p.speed = 840.0
 	p.damage = 0.0                 # 伤害全部来自落地后的火焰区（入圈持续伤害）
 	p.max_lifetime = 2.0
 	p.tex = FIREBOMB_TEX
@@ -434,7 +434,7 @@ func _spawn_basketball(dir: Vector2, dmg: float, st: int) -> void:
 	var p := Area2D.new()
 	p.set_script(PROJ_SCRIPT)
 	p.direction = dir
-	p.speed = 300.0 + 20.0 * st
+	p.speed = 600.0 + 40.0 * st
 	p.damage = dmg
 	p.max_lifetime = 2.5 + 0.4 * st
 	p.tex = BASKETBALL_TEX
@@ -458,7 +458,7 @@ func _spawn_arrow(dmg: float, st: int, is_super: bool, target: Node2D, end_offse
 	p.set_script(PROJ_SCRIPT)
 	var dir: Vector2 = _aim_dir()
 	p.direction = dir
-	p.speed = 640.0 + (140.0 if is_super else 0.0)
+	p.speed = 1280.0 + (280.0 if is_super else 0.0)
 	p.damage = dmg
 	p.max_lifetime = 2.5
 	p.tex = BOW_ARROW_TEX
@@ -769,7 +769,7 @@ func _spawn_super_pistol_bullet(dir: Vector2, dmg: float, st: int, origin: Vecto
 	p.homing_range = 0.0
 	p.visual_rotation_offset = 0.0
 	if is_bomb:
-		p.speed = 520.0
+		p.speed = 1040.0
 		p.tex = _tex_exec_bomb
 		p.tex_scale = (BULLET_BASE_SCALE + BULLET_SCALE_PER_STAR * st) * 2.4
 		p.pierce = 0
@@ -781,7 +781,7 @@ func _spawn_super_pistol_bullet(dir: Vector2, dmg: float, st: int, origin: Vecto
 		p.aoe_tex = _tex_blast
 		p.aoe_color = Color(1.0, 0.55, 0.2, 0.95)
 	else:
-		p.speed = 780.0
+		p.speed = 1560.0
 		p.tex = BULLET_TEX
 		p.tex_scale = BULLET_BASE_SCALE + BULLET_SCALE_PER_STAR * st
 		p.pierce = 2 + st

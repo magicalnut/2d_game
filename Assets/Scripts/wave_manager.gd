@@ -20,10 +20,10 @@ const ENEMY_SCENES := {
 #    "人海"的压力全部来自【数量/密度】，而非移速。这样阶段推进后敌人依旧慢，
 #    但屏幕上永远挤满，营造割草爽感。
 const ENEMY_ROLES := {
-	"fox":     {"hp": 2.0,  "speed": 95.0,  "touch_damage": 1.0},
-	"agent":   {"hp": 3.0, "speed": 68.0,  "touch_damage": 1.0, "ranged": false, "stationary": true},
-	"mario":   {"hp": 5.0,  "speed": 52.0,  "touch_damage": 1.0},
-	"armored": {"hp": 10.0, "speed": 38.0,  "touch_damage": 2.0},
+	"fox":     {"hp": 2.0,  "speed": 190.0,  "touch_damage": 1.0},
+	"agent":   {"hp": 3.0, "speed": 136.0,  "touch_damage": 1.0, "ranged": false, "stationary": true},
+	"mario":   {"hp": 5.0,  "speed": 104.0,  "touch_damage": 1.0},
+	"armored": {"hp": 10.0, "speed": 76.0,  "touch_damage": 2.0},
 }
 
 # 预设波次(WAVES)已移除：战斗一开始即进入程序化无尽模式（详见 _on_wave_cleared / _start_next_wave 的 _endless 直启逻辑）。

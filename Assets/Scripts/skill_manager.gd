@@ -226,7 +226,7 @@ func apply_passive(id: String) -> void:
 	var magnet: int = stars("passive_magnet")
 	var book: int   = stars("passive_book")
 	var stock: int  = stars("passive_stock")
-	_player.speed = 220.0 * (1.0 + 0.12 * shoe)
+	_player.speed = 440.0 * (1.0 + 0.12 * shoe)
 	_player.magnet_radius = 140.0 * (1.0 + 0.25 * magnet)
 	_player.xp_pickup_mult = 1.0 + 0.20 * book
 	_player.xp_rate_mult = 1.0 + 0.12 * stock

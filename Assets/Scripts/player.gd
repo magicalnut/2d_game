@@ -1,9 +1,9 @@
 extends CharacterBody2D
 
-@export var speed: float = 220.0
+@export var speed: float = 440.0
 @export var bullet_scene: PackedScene
 @export var fire_rate: float = 0.45        # 两发子弹最小间隔（秒）
-@export var bullet_speed: float = 480.0
+@export var bullet_speed: float = 960.0
 @export var auto_fire: bool = true         # 有目标时自动开火
 @export var muzzle_offset: float = 26.0    # 子弹生成位置相对人物的偏移
 @export var aim_radius: float = 400.0      # 发射时以玩家为圆心的锁敌半径
@@ -303,7 +303,7 @@ func get_facing() -> String:
 # 角色出战：按角色属性修正基础数值（max_hp / speed），并刷新当前血量
 func apply_run_mods(hp_mult: float, speed_mult: float) -> void:
 	_base_max_hp = 15.0 * hp_mult
-	_base_speed = 220.0 * speed_mult
+	_base_speed = 440.0 * speed_mult
 	max_hp = _base_max_hp
 	speed = _base_speed
 	_hp = max_hp
@@ -312,9 +312,9 @@ func apply_run_mods(hp_mult: float, speed_mult: float) -> void:
 
 # 装备属性的基础值快照（防止重复叠加）
 var _base_max_hp: float = 15.0
-var _base_speed: float = 220.0
+var _base_speed: float = 440.0
 var _base_bullet_damage: float = 1.0
-var _base_bullet_speed: float = 480.0
+var _base_bullet_speed: float = 960.0
 var _base_magnet_radius: float = 140.0
 var _base_xp_pickup_mult: float = 1.0
 

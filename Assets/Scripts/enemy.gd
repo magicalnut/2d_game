@@ -9,7 +9,7 @@ const EXP_ORB_SCENE := preload("res://Assets/Sprites/Pickups/exp_orb.tscn")
 const HEALTH_BOTTLE_SCENE := preload("res://Assets/Sprites/Pickups/health_bottle.tscn")
 
 @export var hp: float = 3.0
-@export var speed: float = 90.0              # 移动速度
+@export var speed: float = 180.0              # 移动速度
 @export var touch_damage: float = 1.0        # 接触造成的伤害（近战）
 @export var attack_interval: float = 1.0     # 两次接触伤害的最小间隔（秒）
 @export var attack_range: float = 40.0       # 进入此距离即视为"接触"（近战）
@@ -26,7 +26,7 @@ const HEALTH_BOTTLE_SCENE := preload("res://Assets/Sprites/Pickups/health_bottle
 @export var preferred_range: float = 360.0    # 倾向与玩家保持的距离（风筝）
 @export var fire_rate: float = 1.5            # 开火间隔（秒）
 @export var bullet_damage: float = 1.0        # 单发子弹伤害
-@export var bullet_speed: float = 300.0       # 子弹飞行速度
+@export var bullet_speed: float = 600.0       # 子弹飞行速度
 
 @export var boss: bool = false                # BOSS 标记：放大体型、周期性环形弹幕、死亡高经验+回血
 var _boss_timer: float = 0.0

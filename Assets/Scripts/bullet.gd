@@ -4,7 +4,7 @@ extends Area2D
 ## 有 target 时持续转向跟踪该敌人；无 target 时按 direction 直线飞行。
 ## 飞出背景边界或超时则销毁。
 
-@export var speed: float = 480.0
+@export var speed: float = 960.0
 @export var damage: float = 1.0
 @export var turn_speed: float = 12.0     # 每秒最大转向弧度（跟踪灵敏度）
 @export var max_lifetime: float = 4.0     # 最大存活时间，防止无限飞行

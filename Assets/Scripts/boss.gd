@@ -36,7 +36,7 @@ var _enraged: bool = false
 var _prev_phase: int = 1
 
 # 移动
-var _base_speed: float = 60.0    # 由 def["speed"] 覆盖（每只 BOSS 不同）
+var _base_speed: float = 120.0    # 由 def["speed"] 覆盖（每只 BOSS 不同）
 const _preferred_range: float = 250.0
 const _contact_range: float = 78.0
 const _melee_trigger: float = 110.0   # 玩家进入此距离才触发近战挥砍
@@ -60,7 +60,7 @@ var _pending: String = ""
 # 冲撞（charge）
 var _charge_t: float = 0.0
 var _charge_dir: Vector2 = Vector2.RIGHT
-var _charge_speed: float = 720.0
+var _charge_speed: float = 1440.0
 var _charge_dist: float = 420.0
 
 # 螺旋（spiral）
@@ -70,7 +70,7 @@ var _spiral_angle: float = 0.0
 var _spiral_arms: int = 4
 var _spiral_step: float = 0.10
 var _spiral_rot: float = 0.45
-var _spiral_speed: float = 260.0
+var _spiral_speed: float = 520.0
 var _spiral_dmg: float = 1.0
 
 # 召唤
@@ -80,7 +80,7 @@ var _summon_n: int = 2
 var _burst_t: float = 0.0
 var _burst_acc: float = 0.0
 var _burst_step: float = 0.13
-var _burst_speed: float = 340.0
+var _burst_speed: float = 680.0
 var _burst_dmg: float = 1.0
 var _burst_spread: float = 0.10
 

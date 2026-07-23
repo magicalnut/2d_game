@@ -4,7 +4,7 @@ extends Area2D
 ## 命中 "player" 组的节点造成伤害；飞出背景边界或超时则销毁。
 ## 与玩家的追踪弹（bullet.gd）区分：只打玩家、纯直线、无锁定目标。
 
-@export var speed: float = 300.0
+@export var speed: float = 600.0
 @export var damage: float = 1.0
 @export var max_lifetime: float = 5.0
 

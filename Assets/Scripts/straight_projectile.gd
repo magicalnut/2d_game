@@ -4,7 +4,7 @@ extends Area2D
 ## 可沿 direction 直线飞行，也可开启轻微 homing 追踪；命中敌人造成伤害，按 pierce 决定穿透或销毁。
 ## 与玩家基础武器 bullet.gd（自动追踪子弹）是两种完全不同的弹道，视觉/行为均区分。
 
-@export var speed: float = 500.0
+@export var speed: float = 1000.0
 @export var damage: float = 1.0
 @export var max_lifetime: float = 3.0
 @export var pierce: int = 0          # 可穿透的敌人数（0=命中第一个即销毁）
