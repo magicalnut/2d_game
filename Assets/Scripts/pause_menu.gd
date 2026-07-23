@@ -72,24 +72,32 @@ func toggle() -> void:
 	else:
 		_open = true
 		_overlay.visible = true
-		get_tree().paused = true
+		var tree := get_tree()
+		if tree != null:
+			tree.paused = true
 
 func _on_resume() -> void:
 	_open = false
 	_overlay.visible = false
-	get_tree().paused = false
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = false
 
 func _on_restart() -> void:
 	_open = false
 	_overlay.visible = false
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = false
+		tree.reload_current_scene()
 
 func _on_menu() -> void:
 	_open = false
 	_overlay.visible = false
-	get_tree().paused = false
-	get_tree().change_scene_to_file(MENU_SCENE)
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = false
+		tree.change_scene_to_file.call_deferred(MENU_SCENE)
 
 func is_open() -> bool:
 	return _open

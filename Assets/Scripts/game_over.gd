@@ -166,13 +166,17 @@ func show_level_failed(reason: String) -> void:
 
 func _on_restart() -> void:
 	_overlay.visible = false
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = false
+		tree.reload_current_scene()
 
 func _on_menu() -> void:
 	_overlay.visible = false
-	get_tree().paused = false
-	get_tree().change_scene_to_file(MENU_SCENE)
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = false
+		tree.change_scene_to_file.call_deferred(MENU_SCENE)
 
 func is_open() -> bool:
 	return _overlay.visible

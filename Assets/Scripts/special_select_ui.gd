@@ -334,6 +334,7 @@ func _stat_label(key: String) -> String:
 	match key:
 		"atk_bonus": return "攻击力"
 		"max_hp_bonus": return "生命值"
+		"move_speed_bonus": return "移速"
 		"projectile_speed": return "弹速"
 		"def_bonus": return "减伤"
 		"pickup_radius": return "拾取"

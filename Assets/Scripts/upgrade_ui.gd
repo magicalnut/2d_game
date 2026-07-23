@@ -19,7 +19,7 @@ var _sb_empty: StyleBox
 # 三卡须在 1152 屏宽内排下；CARD_W 取极限宽度，间距压到最小
 const CARD_W: float = 374.0
 const CARD_H: float = 448.0
-const ICON_SIZE: float = 128.0
+const ICON_SIZE: float = 96.0
 
 func _ready() -> void:
 	layer = 20
@@ -80,7 +80,9 @@ func _build_ui() -> void:
 		var card := Button.new()
 		hbox.add_child(card)
 		card.custom_minimum_size = Vector2(CARD_W, CARD_H)
-		# 卡片底图改由发光层(TextureRect+shader)单独绘制，样式盒置空避免双重卡面
+		card.size = Vector2(CARD_W, CARD_H)
+		card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card.clip_contents = true
 		card.add_theme_stylebox_override("normal", _sb_empty)
 		card.add_theme_stylebox_override("hover", _sb_empty)
 		card.add_theme_stylebox_override("pressed", _sb_empty)
@@ -88,13 +90,11 @@ func _build_ui() -> void:
 		card.text = ""
 		card.visible = false
 		card.pressed.connect(_on_card_pressed.bind(i))
-		# 内容容器：每次刷新时清空重建
-		var content := MarginContainer.new()
+		# 内容容器：固定尺寸 Control，clip_contents 裁剪溢出
+		var content := Control.new()
 		content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		content.add_theme_constant_override("margin_left", 28)
-		content.add_theme_constant_override("margin_right", 28)
-		content.add_theme_constant_override("margin_top", 28)
-		content.add_theme_constant_override("margin_bottom", 28)
+		content.clip_contents = true
+		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(content)
 		card.set_meta("content", content)
 
@@ -182,61 +182,72 @@ func _show_cards() -> void:
 		var ch: Dictionary = choices[i]
 		var id: String = ch["id"]
 		var def: Dictionary = SkillManager.SKILLS[id]
+		var has_stars: bool = not ch.get("is_new", false)
 
-		var col := VBoxContainer.new()
-		content.add_child(col)
-		col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		col.alignment = BoxContainer.ALIGNMENT_CENTER
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		col.add_theme_constant_override("separation", 16)
+		# 卡片分上下两区：上区放图标+名称+星级，下区放描述
+		var pad_x: float = 24.0
+		var inner_w: float = CARD_W - pad_x * 2.0
+		var SPLIT_Y: float = CARD_H * 0.48   # 上下分界线（略高于一半）
 
-		# 上移：顶部留固定间距，底部用弹性占位把内容顶到上方，避免去掉描述后图标沉到偏下
-		var top_sp := Control.new()
-		top_sp.custom_minimum_size = Vector2(0.0, 48.0)
-		col.add_child(top_sp)
-
-		# 图标：固定尺寸、居中、保持比例（无论原图多大都对齐统一）
+		# ── 上区：图标靠上，名称+星级靠下 ──
+		# 图标：顶部留间距，居中
 		var tex_rect := TextureRect.new()
-		col.add_child(tex_rect)
+		content.add_child(tex_rect)
 		tex_rect.texture = def["icon"]
 		tex_rect.custom_minimum_size = Vector2(ICON_SIZE, ICON_SIZE)
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tex_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		tex_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		tex_rect.position = Vector2(pad_x + (inner_w - ICON_SIZE) * 0.5, 70.0)
+		tex_rect.size = Vector2(ICON_SIZE, ICON_SIZE)
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-		# 图标与名称之间留间距，让名称相对图标下移（图标位置保持不变）
-		var mid_sp := Control.new()
-		mid_sp.custom_minimum_size = Vector2(0.0, 28.0)
-		col.add_child(mid_sp)
-
-		var name_lbl := Label.new()
-		col.add_child(name_lbl)
-		name_lbl.text = def["name"]
-		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.add_theme_font_size_override("font_size", 26)
-		name_lbl.add_theme_color_override("font_color", Color(0.96, 0.98, 1.0))
-		name_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-		name_lbl.add_theme_constant_override("outline_size", 2)
-
-		# 未获得的技能（新获得）不显示星级行；已拥有的技能才显示当前星级，便于辨别是否升级
-		if not ch.get("is_new", false):
+		# 名称 + 星级：贴在上区底部
+		var bottom_y: float = SPLIT_Y - 8.0
+		if has_stars:
+			bottom_y -= 28.0
 			var star_lbl := Label.new()
-			col.add_child(star_lbl)
+			content.add_child(star_lbl)
+			star_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			star_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			star_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			star_lbl.add_theme_font_size_override("font_size", 24)
+			star_lbl.add_theme_font_size_override("font_size", 22)
 			var cur: int = int(ch["stars"])
 			var mx: int = int(def["max_stars"])
 			star_lbl.text = "★".repeat(cur) + "☆".repeat(mx - cur)
 			star_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+			star_lbl.position = Vector2(pad_x, bottom_y)
+			star_lbl.size = Vector2(inner_w, 28.0)
+			bottom_y -= 4.0
 
-		# 底部弹性占位：吸收剩余空间，把图标+名称+星级整体顶到卡片上方
-		var bot_sp := Control.new()
-		bot_sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		col.add_child(bot_sp)
+		var name_lbl := Label.new()
+		content.add_child(name_lbl)
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		name_lbl.text = def["name"]
+		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_lbl.add_theme_font_size_override("font_size", 24)
+		name_lbl.add_theme_color_override("font_color", Color(0.96, 0.98, 1.0))
+		name_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		name_lbl.add_theme_constant_override("outline_size", 2)
+		name_lbl.position = Vector2(pad_x, bottom_y - 30.0)
+		name_lbl.size = Vector2(inner_w, 30.0)
+
+		# ── 下区：描述文字，垂直居中 ──
+		var desc_text: String = def.get("desc", "")
+		if desc_text != "":
+			var wrapped_desc: String = _wrap_every_n(desc_text, 8)
+			var line_count: int = wrapped_desc.count("\n") + 1
+			var desc_block_h: float = line_count * 20.0
+			var desc_y: float = SPLIT_Y + (CARD_H - SPLIT_Y - desc_block_h) * 0.3
+			var desc_lbl := Label.new()
+			content.add_child(desc_lbl)
+			desc_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			desc_lbl.text = wrapped_desc
+			desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			desc_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+			desc_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+			desc_lbl.add_theme_font_size_override("font_size", 14)
+			desc_lbl.add_theme_color_override("font_color", Color(0.80, 0.83, 0.90))
+			desc_lbl.position = Vector2(pad_x, desc_y)
+			desc_lbl.size = Vector2(inner_w, desc_block_h)
 
 		card.set_meta("skill_id", id)
 		card.visible = true
@@ -266,3 +277,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_1: _on_card_pressed(0)
 			KEY_2: _on_card_pressed(1)
 			KEY_3: _on_card_pressed(2)
+
+func _wrap_every_n(text: String, n: int) -> String:
+	var result: String = ""
+	var count: int = 0
+	for ch in text:
+		if ch == "\n":
+			result += ch
+			count = 0
+		else:
+			result += ch
+			count += 1
+			if count >= n:
+				result += "\n"
+				count = 0
+	return result

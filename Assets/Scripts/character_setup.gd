@@ -842,6 +842,7 @@ func _show_gear_detail_panel(slot_id: String, gear_inst: Dictionary) -> void:
 		match key:
 			"atk_bonus": label_name = "攻击力"
 			"max_hp_bonus": label_name = "生命值"
+			"move_speed_bonus": label_name = "移速"
 			"projectile_speed": label_name = "弹速"
 			"def_bonus": label_name = "减伤"
 			"pickup_radius": label_name = "拾取"

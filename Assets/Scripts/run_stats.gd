@@ -14,13 +14,13 @@ extends Node
 # 其初始武器由 start_weapon 指定，对应 active_weapon.gd 的 skill_id 分支；满星+专属被动可进化（见 skill_manager.gd EVOLVE）。
 const CHARACTERS := {
 	# builtin_attack=true 表示角色使用 player.gd 内置的追踪子弹作为基础攻击；现已全部关闭，四角色统一走各自 active_weapon 的直线弹
-	"wanderer": {"name": "特工",   "start_weapon": "active_pistol",     "speed_mult": 1.00, "hp_mult": 1.0, "desc": "初始手枪（直线弹）",
+	"wanderer": {"name": "特工",   "start_weapon": "active_pistol",     "speed_mult": 1.00, "hp_mult": 1.0, "desc": "均衡型。手枪朝敌人直线射击，操作简单",
 	             "sheet": "res://Assets/Sprites/Heroes/wanderer/sheet.png", "idle_region": Rect2(0, 75, 69, 75), "accent": Color(0.45, 0.85, 0.50), "builtin_attack": false},
-	"brute":    {"name": "壮汉",   "start_weapon": "active_punch",      "speed_mult": 0.85, "hp_mult": 1.6, "desc": "初始拳击",
+	"brute":    {"name": "壮汉",   "start_weapon": "active_punch",      "speed_mult": 0.85, "hp_mult": 1.6, "desc": "高血量近战。拳击对前方扇形范围造成伤害并击退",
 	             "sheet": "res://Assets/Sprites/Heroes/brute/sheet.png",   "idle_region": Rect2(0, 150, 76, 75), "accent": Color(0.95, 0.45, 0.30), "builtin_attack": false},
-	"mage":     {"name": "学者",   "start_weapon": "active_lightning",  "speed_mult": 1.05, "hp_mult": 0.8, "desc": "初始魔法电击",
+	"mage":     {"name": "学者",   "start_weapon": "active_lightning",  "speed_mult": 1.05, "hp_mult": 0.8, "desc": "远程法术。电击同时攻击多个目标，血量较低需注意走位",
 	             "sheet": "res://Assets/Sprites/Heroes/mage/sheet.png",    "idle_region": Rect2(0, 150, 76, 75), "accent": Color(0.50, 0.55, 0.95), "builtin_attack": false},
-	"ranger":   {"name": "游侠",   "start_weapon": "active_bow",        "speed_mult": 1.10, "hp_mult": 0.9, "desc": "初始射箭",
+	"ranger":   {"name": "游侠",   "start_weapon": "active_bow",        "speed_mult": 1.10, "hp_mult": 0.9, "desc": "高机动远程。射箭可穿透多个敌人，移速最快",
 	             "sheet": "res://Assets/Sprites/Heroes/ranger/sheet.png",  "idle_region": Rect2(0, 150, 76, 75), "accent": Color(0.95, 0.85, 0.35), "builtin_attack": false},
 }
 

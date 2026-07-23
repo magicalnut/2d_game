@@ -14,35 +14,35 @@ enum SkillType { PASSIVE, ACTIVE, SPECIAL }
 # 每个技能：type / name / desc / icon(预加载) / max_stars
 const SKILLS := {
 	# —— 被动（永久属性，1~5 星）——
-	"passive_shoe":   {"type": SkillType.PASSIVE, "name": "球鞋",   "desc": "移动速度 +12%/星",        "icon": preload("res://Assets/Sprites/Skills/passive_shoe.png"),   "max_stars": 5},
-	"passive_magnet": {"type": SkillType.PASSIVE, "name": "吸铁石", "desc": "拾取范围 +25%/星",        "icon": preload("res://Assets/Sprites/Skills/passive_magnet.png"), "max_stars": 5},
-	"passive_book":   {"type": SkillType.PASSIVE, "name": "书籍",   "desc": "经验球价值 +20%/星",      "icon": preload("res://Assets/Sprites/Skills/passive_book.png"),   "max_stars": 5},
-	"passive_stock":  {"type": SkillType.PASSIVE, "name": "股票",   "desc": "升级所需经验 -12%/星",     "icon": preload("res://Assets/Sprites/Skills/passive_stock.png"),  "max_stars": 5},
+	"passive_shoe":   {"type": SkillType.PASSIVE, "name": "球鞋",   "desc": "永久提升移动速度，每颗星+12%",        "icon": preload("res://Assets/Sprites/Skills/passive_shoe.png"),   "max_stars": 5},
+	"passive_magnet": {"type": SkillType.PASSIVE, "name": "吸铁石", "desc": "扩大经验球和血瓶的自动吸附范围，每颗星+25%",        "icon": preload("res://Assets/Sprites/Skills/passive_magnet.png"), "max_stars": 5},
+	"passive_book":   {"type": SkillType.PASSIVE, "name": "书籍",   "desc": "每个经验球提供的经验值增加，每颗星+20%",      "icon": preload("res://Assets/Sprites/Skills/passive_book.png"),   "max_stars": 5},
+	"passive_stock":  {"type": SkillType.PASSIVE, "name": "股票",   "desc": "每次升级所需经验值减少，每颗星-12%",     "icon": preload("res://Assets/Sprites/Skills/passive_stock.png"),  "max_stars": 5},
 	# —— 角色专属被动（进化前置条件，1~5 星）——
-	"passive_glove":    {"type": SkillType.PASSIVE, "name": "拳套",   "desc": "壮汉拳击进化前置 · 拳击伤害 +10%/星", "icon": preload("res://Assets/Sprites/Skills/passive_glove.png"),    "max_stars": 5, "exclusive_to": "brute"},
-	"passive_staff":    {"type": SkillType.PASSIVE, "name": "法杖",   "desc": "学者电击进化前置 · 电击伤害 +10%/星", "icon": preload("res://Assets/Sprites/Skills/passive_staff.png"),    "max_stars": 5, "exclusive_to": "mage"},
-	"passive_archery":  {"type": SkillType.PASSIVE, "name": "弓术",   "desc": "游侠射箭进化前置 · 箭伤 +10%/星",     "icon": preload("res://Assets/Sprites/Skills/passive_archery.png"),  "max_stars": 5, "exclusive_to": "ranger"},
-	"passive_gun":      {"type": SkillType.PASSIVE, "name": "枪械",   "desc": "特工手枪进化前置 · 子弹伤害 +10%/星", "icon": preload("res://Assets/Sprites/Skills/passive_gun.png"),      "max_stars": 5, "exclusive_to": "wanderer"},
+	"passive_glove":    {"type": SkillType.PASSIVE, "name": "拳套",   "desc": "壮汉专属。提升拳击伤害，每颗星+10%。与「拳击」同时满星可进化", "icon": preload("res://Assets/Sprites/Skills/passive_glove.png"),    "max_stars": 5, "exclusive_to": "brute"},
+	"passive_staff":    {"type": SkillType.PASSIVE, "name": "法杖",   "desc": "学者专属。提升电击伤害，每颗星+10%。与「魔法电击」同时满星可进化", "icon": preload("res://Assets/Sprites/Skills/passive_staff.png"),    "max_stars": 5, "exclusive_to": "mage"},
+	"passive_archery":  {"type": SkillType.PASSIVE, "name": "弓术",   "desc": "游侠专属。提升箭矢伤害，每颗星+10%。与「射箭」同时满星可进化",     "icon": preload("res://Assets/Sprites/Skills/passive_archery.png"),  "max_stars": 5, "exclusive_to": "ranger"},
+	"passive_gun":      {"type": SkillType.PASSIVE, "name": "枪械",   "desc": "特工专属。提升子弹伤害，每颗星+10%。与「手枪」同时满星可进化", "icon": preload("res://Assets/Sprites/Skills/passive_gun.png"),      "max_stars": 5, "exclusive_to": "wanderer"},
 
 	# —— 主动（自动攻击，1~5 星；满星+专属被动可进化成 super_*，见 EVOLVE）——
-	"active_pistol":     {"type": SkillType.ACTIVE, "name": "手枪",   "desc": "发射子弹，可有限穿透",         "icon": preload("res://Assets/Sprites/Skills/active_pistol.png"),     "max_stars": 5, "exclusive_to": "wanderer"},
-	"active_bow":        {"type": SkillType.ACTIVE, "name": "射箭",   "desc": "逐根连射箭矢，有限穿透并卡入敌人", "icon": preload("res://Assets/Sprites/Skills/active_bow.png"),        "max_stars": 5, "exclusive_to": "ranger"},
-	"active_punch":      {"type": SkillType.ACTIVE, "name": "拳击",   "desc": "近身重拳，击退前方敌人",       "icon": preload("res://Assets/Sprites/Skills/active_punch.png"),      "max_stars": 5, "exclusive_to": "brute"},
-	"active_lightning":  {"type": SkillType.ACTIVE, "name": "魔法电击", "desc": "锁定最近数个敌人落魔法射线(每星+1目标)", "icon": preload("res://Assets/Sprites/Skills/active_lightning.png"),  "max_stars": 5, "exclusive_to": "mage"},
-	"active_drone":      {"type": SkillType.ACTIVE, "name": "无人机", "desc": "环绕无人机会自动开火(通用)",   "icon": preload("res://Assets/Sprites/Skills/active_drone.png"),     "max_stars": 5},
-	"active_firebomb":   {"type": SkillType.ACTIVE, "name": "燃烧瓶", "desc": "投掷燃烧瓶，留下持续火焰",     "icon": preload("res://Assets/Sprites/Skills/active_firebomb.png"),   "max_stars": 5},
-	"active_basketball": {"type": SkillType.ACTIVE, "name": "巧乐兹", "desc": "弹跳巧乐兹，反复碾压敌群(通用)", "icon": preload("res://Assets/Sprites/Skills/active_basketball.png"), "max_stars": 5},
-	"active_book":       {"type": SkillType.ACTIVE, "name": "魔法书", "desc": "发射魔法弹，远程轰炸(通用)",   "icon": preload("res://Assets/Sprites/Skills/active_book.png"),       "max_stars": 5},
+	"active_pistol":     {"type": SkillType.ACTIVE, "name": "手枪",   "desc": "朝最近敌人发射直线子弹，命中第一个敌人后消失",         "icon": preload("res://Assets/Sprites/Skills/active_pistol.png"),     "max_stars": 5, "exclusive_to": "wanderer"},
+	"active_bow":        {"type": SkillType.ACTIVE, "name": "射箭",   "desc": "快速射出多支箭矢，可穿透多个敌人；每颗星多射一支", "icon": preload("res://Assets/Sprites/Skills/active_bow.png"),        "max_stars": 5, "exclusive_to": "ranger"},
+	"active_punch":      {"type": SkillType.ACTIVE, "name": "拳击",   "desc": "对前方扇形范围内的敌人造成伤害并击退",       "icon": preload("res://Assets/Sprites/Skills/active_punch.png"),      "max_stars": 5, "exclusive_to": "brute"},
+	"active_lightning":  {"type": SkillType.ACTIVE, "name": "魔法电击", "desc": "同时攻击最近的多个敌人，每颗星多锁定一个目标", "icon": preload("res://Assets/Sprites/Skills/active_lightning.png"),  "max_stars": 5, "exclusive_to": "mage"},
+	"active_drone":      {"type": SkillType.ACTIVE, "name": "无人机", "desc": "无人机环绕玩家飞行，自动向最近敌人发射激光；每颗星多一架",   "icon": preload("res://Assets/Sprites/Skills/active_drone.png"),     "max_stars": 5},
+	"active_firebomb":   {"type": SkillType.ACTIVE, "name": "燃烧瓶", "desc": "向四周投掷燃烧瓶，落地后留下持续燃烧区域造成伤害",     "icon": preload("res://Assets/Sprites/Skills/active_firebomb.png"),   "max_stars": 5},
+	"active_basketball": {"type": SkillType.ACTIVE, "name": "巧乐兹", "desc": "发射弹跳球在敌人间来回反弹，反复造成伤害", "icon": preload("res://Assets/Sprites/Skills/active_basketball.png"), "max_stars": 5},
+	"active_book":       {"type": SkillType.ACTIVE, "name": "魔法书", "desc": "向四周发射星形子弹，飞出一段距离后自动追踪敌人",   "icon": preload("res://Assets/Sprites/Skills/active_book.png"),       "max_stars": 5},
 
 	# —— 进化体（满星+专属被动后由升级卡授予；evolves_from 指明被替换的基础武器）——
-	"super_pistol":     {"type": SkillType.ACTIVE, "name": "双枪绝杀", "desc": "终极 · 双管交替狂射，周期射出命中爆炸的绝杀弹", "icon": preload("res://Assets/Sprites/Skills/super_pistol.png"),     "max_stars": 5, "evolves_from": "active_pistol", "exclusive_to": "wanderer"},
-	"super_bow":        {"type": SkillType.ACTIVE, "name": "万箭齐发", "desc": "终极 · 锁定敌群天降十余支巨箭，落地范围溅射", "icon": preload("res://Assets/Sprites/Skills/super_bow.png"),        "max_stars": 5, "evolves_from": "active_bow", "exclusive_to": "ranger"},
-	"super_punch":      {"type": SkillType.ACTIVE, "name": "毁灭重拳", "desc": "终极 · 巨拳砸地爆发环形冲击波，全向击退敌群",   "icon": preload("res://Assets/Sprites/Skills/super_punch.png"),      "max_stars": 5, "evolves_from": "active_punch", "exclusive_to": "brute"},
-	"super_lightning":  {"type": SkillType.ACTIVE, "name": "连锁雷暴", "desc": "终极 · 天降多道落雷范围轰击，并以电弧连锁蔓延", "icon": preload("res://Assets/Sprites/Skills/super_lightning.png"),  "max_stars": 5, "evolves_from": "active_lightning", "exclusive_to": "mage"},
+	"super_pistol":     {"type": SkillType.ACTIVE, "name": "双枪绝杀", "desc": "双枪同时射击形成密集弹幕，每5发命中射出一枚爆炸弹", "icon": preload("res://Assets/Sprites/Skills/super_pistol.png"),     "max_stars": 5, "evolves_from": "active_pistol", "exclusive_to": "wanderer"},
+	"super_bow":        {"type": SkillType.ACTIVE, "name": "万箭齐发", "desc": "锁定敌群位置，从天降下多支巨箭覆盖圆形区域造成范围伤害", "icon": preload("res://Assets/Sprites/Skills/super_bow.png"),        "max_stars": 5, "evolves_from": "active_bow", "exclusive_to": "ranger"},
+	"super_punch":      {"type": SkillType.ACTIVE, "name": "毁灭重拳", "desc": "巨拳砸地爆发环形冲击波，对周围所有敌人造成伤害并击退",   "icon": preload("res://Assets/Sprites/Skills/super_punch.png"),      "max_stars": 5, "evolves_from": "active_punch", "exclusive_to": "brute"},
+	"super_lightning":  {"type": SkillType.ACTIVE, "name": "连锁雷暴", "desc": "召唤多道落雷攻击敌人，被击中的敌人会向周围迸射电弧连锁伤害", "icon": preload("res://Assets/Sprites/Skills/super_lightning.png"),  "max_stars": 5, "evolves_from": "active_lightning", "exclusive_to": "mage"},
 
-	"special_shield":    {"type": SkillType.SPECIAL, "name": "守护圣盾", "desc": "悬浮身前替你挡伤，脱战自动回盾；升级更厚更大", "icon": preload("res://Assets/Sprites/Skills/special_shield.png"),    "max_stars": 5},
-	"special_hourglass": {"type": SkillType.SPECIAL, "name": "时空沙漏", "desc": "周期冻结全场敌人并清掉敌弹；升级冻更久+微伤", "icon": preload("res://Assets/Sprites/Skills/special_hourglass.png"), "max_stars": 5},
-	"special_thunder":   {"type": SkillType.SPECIAL, "name": "雷电法杖", "desc": "周期雷击屏幕内敌群，优先密集区；升级更多更粗更痛", "icon": preload("res://Assets/Sprites/Skills/special_thunder.png"),   "max_stars": 5},
+	"special_shield":    {"type": SkillType.SPECIAL, "name": "守护圣盾", "desc": "圣盾环绕玩家吸收伤害，脱离战斗后自动恢复；升级后更厚更宽", "icon": preload("res://Assets/Sprites/Skills/special_shield.png"),    "max_stars": 5},
+	"special_hourglass": {"type": SkillType.SPECIAL, "name": "时空沙漏", "desc": "周期性冻结全场敌人并清除敌方弹幕，冻结期间敌人无法行动；升级延长冻结时间", "icon": preload("res://Assets/Sprites/Skills/special_hourglass.png"), "max_stars": 5},
+	"special_thunder":   {"type": SkillType.SPECIAL, "name": "雷电法杖", "desc": "周期性对屏幕内敌人召唤落雷，优先攻击密集区域；升级增加落雷数量和伤害",   "icon": preload("res://Assets/Sprites/Skills/special_thunder.png"),   "max_stars": 5},
 }
 
 # 升级可选池：4 通用被动 + 4 角色专属被动 + 4 角色主题武器 + 4 通用武器
