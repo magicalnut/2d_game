@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://byrcr285615q4"
-path="res://.godot/imported/body.png-f77895e5e541b980c8deaa00bfff0eb7.ctex"
+uid="uid://ccawuvk3jylpe"
+path="res://.godot/imported/huoyanliandao.png-2e89db055e365cdefa9c768900076ef6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Sprites/Bosses/Boss5/Body/body.png"
-dest_files=["res://.godot/imported/body.png-f77895e5e541b980c8deaa00bfff0eb7.ctex"]
+source_file="res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanliandao.png"
+dest_files=["res://.godot/imported/huoyanliandao.png-2e89db055e365cdefa9c768900076ef6.ctex"]
 
 [params]
 

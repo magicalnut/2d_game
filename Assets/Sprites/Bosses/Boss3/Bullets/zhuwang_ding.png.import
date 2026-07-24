@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d166xc8y2oxdq"
-path="res://.godot/imported/frame_01.png-d681753033ae90433bc51ff3733f1872.ctex"
+uid="uid://c42dlx3jinpro"
+path="res://.godot/imported/zhuwang_ding.png-3a8616bd4a049d2d245a6ee587d8ea65.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Sprites/Bosses/Boss5/Body/frame_01.png"
-dest_files=["res://.godot/imported/frame_01.png-d681753033ae90433bc51ff3733f1872.ctex"]
+source_file="res://Assets/Sprites/Bosses/Boss3/Bullets/zhuwang_ding.png"
+dest_files=["res://.godot/imported/zhuwang_ding.png-3a8616bd4a049d2d245a6ee587d8ea65.ctex"]
 
 [params]
 

@@ -39,19 +39,19 @@ const BOSS_SCENE := preload("res://Assets/Sprites/Bosses/boss.tscn")
 # 字段：name 名称 / tint 无素材时占位圆颜色 / hp 基础血量 / 其余见各 path/bullet/telegraph/impact 键
 #       speed 移速 / touch 接触伤害 / exp 经验 / pool 该BOSS偏好的攻击组（可选，缺省用通用池）
 const BOSS_DEFS: Array = [
-	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1000.0, "speed":200.0, "touch":4.0, "exp":45.0, "pool1":["melee"], "pool2":["melee","charge"],
+	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1000.0, "speed":260.0, "touch":4.0, "exp":45.0, "pool1":["melee"], "pool2":["melee","charge"],
 	 "path":"res://Assets/Sprites/Bosses/Boss1/Body/body.png",
-	 "bullet":"res://Assets/Sprites/Bosses/Boss1/Bullets/bullet.png",
+	 "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss1/Bullets/bullet.png",
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss1/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss1/Impacts/impact.png"},
-	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1300.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool1":["aimed"], "pool2":["burst","aimed"], "bullet_speed":400.0, "bullet_dmg":3.0,
+	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1300.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool1":["aimed"], "pool2":["burst","aimed"], "bullet_speed":500.0, "bullet_dmg":3.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss2/Body/body.png",
 	 "bullet":"res://Assets/Sprites/Bosses/Boss2/Bullets/bullet.png", "bullet_px":38.0, "bullet_angle_offset":PI/4,
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss2/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss2/Impacts/impact.png"},
 	# 用户Boss3 - 暗影守卫 (HP 500, 瞄准射击, 5帧动画)
 	{"name":"暗影守卫",   "tint":Color(0.20,0.50,0.30), "hp":500.0, "speed":80.0, "touch":2.5, "exp":30.0,
-	 "pool":["aimed"], "bullet_speed":400.0, "path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
+	 "pool":[], "auto_aimed_interval":1.0, "web_interval":5.0, "web_tex":"res://Assets/Sprites/Bosses/Boss3/Bullets/zhuwang_ding.png", "web_px":150.0, "web_damage":0.5, "web_speed":600.0, "web_stun":1.5, "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss3/Bullets/spider_web.png", "bullet_speed":400.0, "path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss3/Body/"},
 	# 用户Boss4 - 深渊领主 (HP 900, 距离环形AI, 4帧翅膀动画)
 		{"name":"深渊领主",   "tint":Color(0.70,0.30,0.20), "hp":600.0, "speed":80.0, "touch":3.5, "exp":38.0,
@@ -61,13 +61,12 @@ const BOSS_DEFS: Array = [
 	 "charge_interval":5.0, "charge_distance":700.0, "pool":["aimed"],
 	 "path":"res://Assets/Sprites/Bosses/Boss4/Body/frame_01.png",
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss4/Body/"},
-		# 用户Boss5 - 虚空霸主 (HP 900, 环形+螺旋+新星+激光, 6帧动画)
-		{"name":"虚空霸主",   "tint":Color(0.50,0.20,0.60), "hp":900.0, "speed":100.0, "touch":4.0, "exp":45.0,
-		 "pool":["ring","wave","nova","laser"], "wave_cooldown":3.0, "wave_bullets":10, "wave_angle":100.0, "wave_speed":280.0, "wave_dmg":1.0,
-		 "spiral_duration":5.0, "spiral_cooldown":5.0, "spiral_bullets":36,
-		 "laser_telegraph":1.7, "laser_warning":1.0, "laser_react":0.7,
-		 "laser_length":10000.0, "laser_width":50.0, "laser_damage":5.0, "laser_cooldown":3.0,
-		 "path":"res://Assets/Sprites/Bosses/Boss5/Body/frame_01.png",
+		# 用户Boss5 - 虚空霸主 (激光专精)
+		{"name":"虚空霸主",   "tint":Color(0.50,0.20,0.60), "hp":800.0, "speed":100.0, "touch":4.0, "exp":45.0,
+		 "pool":[], "bullet":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanqiu.png", "bullet_px":50.0, "auto_laser_interval":3.0, "ringseq_interval":0.2, "ringseq_damage":1.0, "ringseq_speed":260.0, "sickle_interval":5.0, "sickle_tex":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanliandao.png", "sickle_px":150.0, "sickle_damage":3.0, "sickle_spin":6.283, "sickle_speed":300.0,
+		 "laser_telegraph":0.7, "laser_warning":0.0, "laser_react":0.7,
+		 "laser_length":4500.0, "laser_width":48.0, "laser_damage":5.0, "laser_cooldown":3.0,
+	 "path":"res://Assets/Sprites/Bosses/Boss5/Body/frame_01.png",
 		 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss5/Body/"},
 ]
 var _last_boss_index: int = -1

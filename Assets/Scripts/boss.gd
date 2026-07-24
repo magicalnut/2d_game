@@ -130,6 +130,24 @@ var _charge_auto_distance: float = 700.0
 var _ring_auto_timer: float = 0.0
 var _charge_auto_timer: float = 0.0
 var _auto_ring_flash: float = 0.0
+var _auto_aimed_interval: float = 0.0
+var _auto_aimed_timer: float = 0.0
+var _auto_laser_interval: float = 0.0
+var _auto_laser_timer: float = 0.0
+var _auto_laser_telegraph: float = 0.0
+var _auto_laser_dir: Vector2 = Vector2.RIGHT
+var _auto_laser_flash: float = 0.0
+var _ringseq_interval: float = 0.0
+var _ringseq_timer: float = 0.0
+var _ringseq_angle: float = 0.0
+var _ringseq_speed: float = 200.0
+var _ringseq_dmg: float = 1.0
+var _web_interval: float = 0.0
+var _web_timer: float = 0.0
+var _web_tex: Texture2D = null
+var _sickle_interval: float = 0.0
+var _sickle_timer: float = 0.0
+var _sickle_tex: Texture2D = null
 
 @onready var body_sprite: Sprite2D = $Body
 @onready var anim_body: AnimatedSprite2D = $AnimatedBody
@@ -148,6 +166,27 @@ func _ready() -> void:
 		boss_name = def.get("name", "BOSS")
 		if def.has("speed"):
 			_base_speed = def["speed"]
+		if def.has("auto_laser_interval"):
+			_auto_laser_interval = def["auto_laser_interval"]
+			_auto_laser_timer = 2.0
+		if def.has("auto_aimed_interval"):
+			_auto_aimed_interval = def["auto_aimed_interval"]
+			_auto_aimed_timer = 1.0
+		if def.has("ringseq_interval"):
+			_ringseq_interval = def["ringseq_interval"]
+			_ringseq_speed = def.get("ringseq_speed", 200.0)
+			_ringseq_dmg = def.get("ringseq_dmg", 1.0)
+			_ringseq_timer = 0.5
+		if def.has("web_interval"):
+			_web_interval = def["web_interval"]
+			_web_timer = 2.0
+			if def.has("web_tex") and ResourceLoader.exists(def["web_tex"]):
+				_web_tex = load(def["web_tex"]) as Texture2D
+		if def.has("sickle_interval"):
+			_sickle_interval = def["sickle_interval"]
+			_sickle_timer = 2.0
+			if def.has("sickle_tex") and ResourceLoader.exists(def["sickle_tex"]):
+				_sickle_tex = load(def["sickle_tex"]) as Texture2D
 		body_path = def.get("path", BODY_TEX_PATH)
 		# 专属弹幕贴图（可选）：有则加载，否则沿用通用 enemy_bullet
 		if def.has("bullet") and ResourceLoader.exists(def["bullet"]):
@@ -248,7 +287,7 @@ func _ready() -> void:
 
 func _setup_animated_frames(frames_dir: String) -> void:
 	var sf := SpriteFrames.new()
-	var paths := [frames_dir+"frame_01.png",frames_dir+"frame_02.png",frames_dir+"frame_03.png",frames_dir+"frame_04.png",frames_dir+"frame_05.png"]
+	var paths := [frames_dir+"frame_01.png",frames_dir+"frame_02.png",frames_dir+"frame_03.png",frames_dir+"frame_04.png",frames_dir+"frame_05.png",frames_dir+"frame_06.png"]
 	var loaded: Array = []
 	for fp in paths:
 		if ResourceLoader.exists(fp):
@@ -262,7 +301,10 @@ func _setup_animated_frames(frames_dir: String) -> void:
 	for tex in loaded: sf.add_frame("idle",tex); sf.add_frame("walk",tex)
 	sf.add_frame("hurt",loaded[0]); sf.add_frame("death",loaded[0])
 	anim_body.sprite_frames = sf
-	_body_base_scale = clamp(170.0/float(loaded[0].get_height()),0.2,6.0)
+	var max_h: float = 0.0
+	for t in loaded:
+		max_h = max(max_h, float(t.get_height()))
+	_body_base_scale = clamp(170.0 / max(max_h, 1.0), 0.2, 6.0)
 	anim_body.scale = Vector2.ONE * _body_base_scale
 	anim_body.play("idle")
 
@@ -283,6 +325,90 @@ func _physics_process(delta: float) -> void:
 	_hit_fx_timer = max(_hit_fx_timer - delta, 0.0)
 	_attack_timer = max(_attack_timer - delta, 0.0)
 
+	# auto aimed timer
+	if _auto_aimed_interval > 0.0:
+		_auto_aimed_timer -= delta
+		if _auto_aimed_timer <= 0.0 and is_instance_valid(get_tree().get_first_node_in_group("player")):
+			_auto_aimed_timer = _auto_aimed_interval
+			_fire_aimed(5, 0.16, def.get("bullet_speed", 330.0), def.get("bullet_dmg", 1.2), get_tree().get_first_node_in_group("player"))
+	# auto laser timer
+	if _auto_laser_interval > 0.0:
+		_auto_laser_timer -= delta
+		if _auto_laser_flash > 0.0:
+			_auto_laser_flash -= delta
+		if _auto_laser_telegraph > 0.0:
+			_auto_laser_telegraph -= delta
+			if _auto_laser_telegraph <= 0.0 and is_instance_valid(get_tree().get_first_node_in_group("player")):
+				_laser_dir = _auto_laser_dir
+				_do_laser_rect_hit(get_tree().get_first_node_in_group("player"))
+				_auto_laser_flash = 0.3
+		elif _auto_laser_timer <= 0.0:
+			var pl = get_tree().get_first_node_in_group("player")
+			if is_instance_valid(pl):
+				_auto_laser_timer = _auto_laser_interval
+				_auto_laser_dir = (pl.global_position - global_position).normalized()
+				_auto_laser_telegraph = 0.7
+	# auto rotating ring fireballs (one per 0.5s, 10deg step, 36 bullets per circle)
+	if _ringseq_interval > 0.0:
+		_ringseq_timer -= delta
+		while _ringseq_timer <= 0.0:
+			_ringseq_timer += _ringseq_interval
+			var ang: float = deg_to_rad(_ringseq_angle)
+			_fire_bullet(Vector2(cos(ang), sin(ang)), _ringseq_speed, _ringseq_dmg)
+			_ringseq_angle += 5.0
+			if _ringseq_angle >= 360.0:
+				_ringseq_angle = 0.0
+				_ringseq_timer += 0.5
+	# auto rotating sickle (every N sec, toward player)
+	if _sickle_interval > 0.0:
+		_sickle_timer -= delta
+		if _sickle_timer <= 0.0:
+			_sickle_timer = _sickle_interval
+			var pl = get_tree().get_first_node_in_group("player")
+			if is_instance_valid(pl) and ENEMY_BULLET != null:
+				var b = ENEMY_BULLET.instantiate()
+				b.global_position = global_position
+				b.direction = (pl.global_position - global_position).normalized()
+				b.speed = def.get("sickle_speed", 300.0)
+				b.damage = def.get("sickle_damage", 3.0)
+				b.max_lifetime = 20.0
+				b.spin_speed = def.get("sickle_spin", TAU)
+				if _sickle_tex != null:
+					var sp = b.get_node_or_null("Sprite2D")
+					if sp != null:
+						sp.texture = _sickle_tex
+						if def.has("sickle_px") and _sickle_tex.get_width() > 0:
+							var tw: float = float(_sickle_tex.get_width())
+							sp.scale = Vector2.ONE * (float(def["sickle_px"]) / tw)
+				get_parent().add_child(b)
+	# auto web stun attack (every N sec, toward player)
+	if _web_interval > 0.0:
+		_web_timer -= delta
+		if _web_timer <= 0.0:
+			_web_timer = _web_interval
+			var pl = get_tree().get_first_node_in_group("player")
+			if is_instance_valid(pl) and ENEMY_BULLET != null:
+				var b = ENEMY_BULLET.instantiate()
+				b.global_position = global_position
+				b.direction = (pl.global_position - global_position).normalized()
+				b.speed = def.get("web_speed", 600.0)
+				b.damage = def.get("web_damage", 0.5)
+				b.max_lifetime = 20.0
+				b.stun_duration = def.get("web_stun", 1.5)
+				if _web_tex != null:
+					var sp = b.get_node_or_null("Sprite2D")
+					if sp != null:
+						sp.texture = _web_tex
+						if def.has("web_px") and _web_tex.get_width() > 0:
+							var tw: float = float(_web_tex.get_width())
+							sp.scale = Vector2.ONE * (float(def["web_px"]) / tw)
+						var cs = b.get_node_or_null("CollisionShape2D")
+						if cs != null:
+							var sz: float = 170.0 / 3.0
+							var new_shape := RectangleShape2D.new()
+							new_shape.size = Vector2(sz, sz)
+							cs.shape = new_shape
+				get_parent().add_child(b)
 	var player: Node2D = get_tree().get_first_node_in_group("player") as Node2D
 	if _frozen or not is_instance_valid(player):
 		velocity = Vector2.ZERO
@@ -304,7 +430,7 @@ func _physics_process(delta: float) -> void:
 	_update_contact(delta, player)
 	_update_facing(player)
 
-	if _astate == AState.TELEGRAPH or _spiral_t > 0.0 or _ai_mode == "distance_ring":
+	if _astate == AState.TELEGRAPH or _spiral_t > 0.0 or _ai_mode == "distance_ring" or _auto_laser_telegraph > 0.0 or _auto_laser_flash > 0.0:
 		queue_redraw()
 
 # —— 阶段 ——
@@ -323,8 +449,9 @@ func _update_attack(delta: float, player: Node2D) -> void:
 			_atimer -= delta
 			if _atimer <= 0.0:
 				_choose_attack(player)
-				_astate = AState.TELEGRAPH
-				_tele = _tele_dur
+				if _pending != "":
+					_astate = AState.TELEGRAPH
+					_tele = _tele_dur
 		AState.TELEGRAPH:
 			_tele -= delta
 			_tele_progress = 1.0 - clamp(_tele / _tele_dur, 0.0, 1.0)
@@ -351,7 +478,8 @@ func _update_attack(delta: float, player: Node2D) -> void:
 				_charge_t -= delta
 			if _laser_t > 0.0:
 				_laser_t -= delta
-				_do_laser_hit(player)
+				if not _laser_use_new:
+					_do_laser_hit(player)
 			if _atimer <= 0.0:
 				_astate = AState.IDLE
 
@@ -397,6 +525,11 @@ func _distance_ring_tick(delta: float, player: Node2D) -> void:
 		_burst_t = 0.0
 func _choose_attack(player: Node2D) -> void:
 	var pool: Array = _attack_pool()
+	if pool.is_empty():
+		_pending = ""
+		_astate = AState.IDLE
+		_atimer = 0.5
+		return
 	_pending = pool[randi() % pool.size()]
 	var ph: int = _phase()
 	match _pending:
@@ -512,7 +645,8 @@ func _execute_attack(player: Node2D) -> void:
 				_laser_cooldown_timer = _laser_cooldown
 			else:
 				_laser_t = 0.5   # 激光持续伤害0.5秒
-				_do_laser_hit(player)
+				if not _laser_use_new:
+					_do_laser_hit(player)
 
 # —— 攻击原语 ——
 func _fire_bullet(dir: Vector2, speed: float, dmg: float) -> void:
@@ -603,6 +737,7 @@ func _update_burst(delta: float, player: Node2D) -> void:
 		_spiral_angle += _spiral_rot
 
 # —— 移动 ——
+@warning_ignore("unused_parameter")
 func _update_movement(delta: float, player: Node2D) -> void:
 	if _astate == AState.TELEGRAPH:
 		velocity = Vector2.ZERO          # 预警时站定，更易读
@@ -630,7 +765,7 @@ func _update_movement(delta: float, player: Node2D) -> void:
 		velocity = Vector2.ZERO
 	move_and_slide()
 
-func _update_contact(delta: float, player: Node2D) -> void:
+func _update_contact(_delta: float, player: Node2D) -> void:
 	if _charge_t > 0.0 and global_position.distance_to(player.global_position) <= _contact_range + 30.0:
 		if _attack_timer <= 0.0 and player.has_method("take_damage"):
 			var dir: Vector2 = (player.global_position - global_position).normalized()
@@ -687,6 +822,7 @@ func _do_laser_rect_hit(player: Node2D) -> void:
 	if perp_len > _laser_width * 0.5: return
 	if player.has_method("take_damage"):
 		player.take_damage(_laser_damage, _laser_dir, KB_FORCE * 0.3)
+
 
 func _spawn_impact(pos: Vector2) -> void:
 	if _impact_tex == null:
@@ -746,6 +882,30 @@ func _draw() -> void:
 	if _auto_ring_flash > 0.0:
 		var fa: float = _auto_ring_flash / 0.22
 		draw_arc(Vector2.ZERO, 210.0, 0.0, TAU, 36, Color(1.0, 0.5, 0.2, 0.50 * fa), 3.0)
+	# auto laser telegraph - faint red dashed
+	if _auto_laser_telegraph > 0.0:
+		var hw: float = _laser_width * 0.5
+		var end: Vector2 = _auto_laser_dir * _laser_length
+		var perp: Vector2 = Vector2(-_auto_laser_dir.y, _auto_laser_dir.x)
+		var alpha: float = 0.35 + 0.25 * sin(_auto_laser_telegraph * 12.0)
+		var col: Color = Color(1.0, 0.25, 0.15, alpha)
+		draw_line(Vector2.ZERO + perp*hw, end + perp*hw, col, 2.0)
+		draw_line(Vector2.ZERO - perp*hw, end - perp*hw, col, 2.0)
+		draw_line(Vector2.ZERO - perp*hw, Vector2.ZERO + perp*hw, col, 2.0)
+		draw_line(end - perp*hw, end + perp*hw, col, 2.0)
+	# auto laser flash - deep red filled
+	if _auto_laser_flash > 0.0:
+		var hw2: float = _laser_width * 0.5
+		var end2: Vector2 = _auto_laser_dir * _laser_length
+		var perp2: Vector2 = Vector2(-_auto_laser_dir.y, _auto_laser_dir.x)
+		var remain: float = _auto_laser_flash / 0.3
+		var pts: PackedVector2Array = PackedVector2Array([Vector2.ZERO+perp2*hw2, end2+perp2*hw2, end2-perp2*hw2, Vector2.ZERO-perp2*hw2])
+		draw_colored_polygon(pts, Color(1.0, 0.02, 0.01, 0.40 * remain))
+		var col2: Color = Color(1.0, 0.04, 0.01, 0.85 * remain)
+		draw_line(Vector2.ZERO + perp2*hw2, end2 + perp2*hw2, col2, 5.0)
+		draw_line(Vector2.ZERO - perp2*hw2, end2 - perp2*hw2, col2, 5.0)
+		draw_line(Vector2.ZERO - perp2*hw2, Vector2.ZERO + perp2*hw2, col2, 5.0)
+		draw_line(end2 - perp2*hw2, end2 + perp2*hw2, col2, 5.0)
 	if _astate != AState.TELEGRAPH:
 		return
 	var a: float = _tele_progress

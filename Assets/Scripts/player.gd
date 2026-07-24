@@ -31,6 +31,7 @@ var _use_builtin_attack: bool = false   # 是否使用 player.gd 内置追踪子
 var _invuln: float = 0.0
 const INVULN_TIME: float = 0.5
 var _kb_vel: Vector2 = Vector2.ZERO
+var _stunned: bool = false
 const KB_DECAY: float = 1800.0   # 击退速度衰减（像素/秒²）
 
 # —— 经验 / 等级 ——
@@ -121,8 +122,8 @@ func _setup_camera_limits() -> void:
 	# 根据当前视口大小 + 相机缩放计算边界，避免画面露出背景外（zoom<1 时需放大可视半径）
 	var viewport_size := get_viewport_rect().size
 	var z: float = camera.zoom.x
-	var half_w := viewport_size.x * 0.5 / z
-	var half_h := viewport_size.y * 0.5 / z
+	var _half_w := viewport_size.x * 0.5 / z
+	var _half_h := viewport_size.y * 0.5 / z
 	camera.limit_left = int(0)
 	camera.limit_top = int(0)
 	camera.limit_right = int(5088.0)
@@ -158,7 +159,10 @@ func _physics_process(delta: float) -> void:
 
 	var input_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
-	velocity = input_dir * speed + _kb_vel
+	if _stunned:
+		velocity = _kb_vel
+	else:
+		velocity = input_dir * speed + _kb_vel
 
 	if input_dir.x < 0:
 		facing = "left"
@@ -326,7 +330,7 @@ func _apply_equipment_stats() -> void:
 	var spd_bonus: float = gear_stats.get("move_speed_bonus", 0.0)
 	var atk_bonus: float = gear_stats.get("atk_bonus", 0.0)
 	var pspd_bonus: float = gear_stats.get("projectile_speed", 0.0)
-	var def_bonus: float = gear_stats.get("def_bonus", 0.0)
+	var _def_bonus: float = gear_stats.get("def_bonus", 0.0)
 	var pickup_bonus: float = gear_stats.get("pickup_radius", 0.0)
 	var exp_bonus: float = gear_stats.get("exp_bonus", 0.0)
 
@@ -422,6 +426,12 @@ func heal(amount: float) -> void:
 	if healed > 0.0:
 		_spawn_float_text("+%d" % int(healed), Color(0.35, 1.0, 0.45))
 		_flash_green()
+
+# Boss 蛛网定身：禁止移动 duration 秒，之后自动恢复
+func stun(duration: float) -> void:
+	_stunned = true
+	await get_tree().create_timer(duration).timeout
+	_stunned = false
 
 # 头顶飘字：向上浮动并淡出后自动销毁
 func _spawn_float_text(text: String, color: Color) -> void:
