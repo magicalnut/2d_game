@@ -1157,6 +1157,9 @@ func _make_slot(name: String, id: String, pos: Vector2, gear_inst: Dictionary = 
 	hit.add_theme_stylebox_override("focus", empty)
 	hit.pressed.connect(func(): _on_slot_clicked(id))
 	slot.add_child(hit)
+	# 统一用 _update_slot_visual 初始化外观：未解锁槽立即显示 lock.png 美术素材，
+	# 而非默认 emoji —— 避免出现「进页面是 emoji、选完符文刷新后才变 lock.png」的不一致
+	_update_slot_visual(slot, id, gear_inst)
 	return slot
 
 # 模式按钮：enabled=false 时置灰「即将开放」不可点
