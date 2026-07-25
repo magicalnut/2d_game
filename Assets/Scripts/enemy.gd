@@ -29,6 +29,7 @@ const HEALTH_BOTTLE_SCENE := preload("res://Assets/Sprites/Pickups/health_bottle
 @export var bullet_speed: float = 600.0       # 子弹飞行速度
 
 @export var boss: bool = false                # BOSS 标记：放大体型、周期性环形弹幕、死亡高经验+回血
+@export var flip_left_walk: bool = false       # 向左走时水平镜像精灵（用于只有右向行走素材的敌人：fox/mario）
 var _boss_timer: float = 0.0
 const BOSS_FIRE_INTERVAL: float = 2.2         # BOSS 环形弹幕间隔（秒）
 const KNOCKBACK_DECAY: float = 1100.0         # 击退速度衰减（px/s²），越大被击退时间越短
@@ -151,10 +152,19 @@ func _update_facing(dir: Vector2) -> void:
 
 func _play_walk() -> void:
 	if sprite and sprite.sprite_frames and sprite.sprite_frames.has_animation(_facing):
-		sprite.play(_facing)
+		if flip_left_walk and _facing == "left":
+			sprite.flip_h = true
+			if sprite.sprite_frames.has_animation("right"):
+				sprite.play("right")
+			else:
+				sprite.play(_facing)
+		else:
+			sprite.flip_h = false
+			sprite.play(_facing)
 
 func _play_idle() -> void:
 	if sprite and sprite.sprite_frames and sprite.sprite_frames.has_animation("idle"):
+		sprite.flip_h = false
 		sprite.play("idle")
 
 func _fire_at_player(player: Node2D) -> void:

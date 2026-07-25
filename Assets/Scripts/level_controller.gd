@@ -261,6 +261,9 @@ func _spawn_level_enemy(kind: String) -> void:
 	if role.has("bullet_speed"):    e.bullet_speed = role["bullet_speed"]
 	if role.has("ranged") and role["ranged"]:
 		e.bullet_scene = WaveManager.ENEMY_BULLET_SCENE
+	# fox / mario 精灵图只有右向行走素材，向左走时需水平镜像
+	if kind == "fox" or kind == "mario":
+		e.flip_left_walk = true
 	e.global_position = _pick_spawn_pos()
 	add_child(e)
 
