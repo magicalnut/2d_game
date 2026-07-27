@@ -21,7 +21,7 @@ const ENEMY_SCENES := {
 #    但屏幕上永远挤满，营造割草爽感。
 const ENEMY_ROLES := {
 	"fox":     {"hp": 2.0,  "speed": 190.0,  "touch_damage": 1.0},
-	"agent":   {"hp": 3.0, "speed": 136.0,  "touch_damage": 1.0, "ranged": false, "stationary": true},
+	"agent":   {"hp": 3.0, "speed": 136.0,  "touch_damage": 1.0, "ranged": true, "fire_range": 560.0, "preferred_range": 360.0, "fire_rate": 1.5, "bullet_damage": 1.0, "bullet_speed": 600.0},
 	"mario":   {"hp": 5.0,  "speed": 104.0,  "touch_damage": 1.0},
 	"armored": {"hp": 10.0, "speed": 76.0,  "touch_damage": 2.0},
 }
