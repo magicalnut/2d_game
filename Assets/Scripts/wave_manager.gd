@@ -39,12 +39,12 @@ const BOSS_SCENE := preload("res://Assets/Sprites/Bosses/boss.tscn")
 # 字段：name 名称 / tint 无素材时占位圆颜色 / hp 基础血量 / 其余见各 path/bullet/telegraph/impact 键
 #       speed 移速 / touch 接触伤害 / exp 经验 / pool 该BOSS偏好的攻击组（可选，缺省用通用池）
 const BOSS_DEFS: Array = [
-	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1000.0, "speed":260.0, "touch":4.0, "exp":45.0, "pool1":["melee"], "pool2":["melee","charge"],
+	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1000.0, "speed":240.0, "touch":4.0, "exp":45.0, "pool":[], "auto_melee_interval":0.8, "auto_charge_interval":4.0, "charge_distance":700.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss1/Body/body.png",
 	 "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss1/Bullets/bullet.png",
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss1/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss1/Impacts/impact.png"},
-	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1300.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool1":["aimed"], "pool2":["burst","aimed"], "bullet_speed":500.0, "bullet_dmg":3.0,
+	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1300.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool":[], "auto_aimed_interval":0.8, "auto_burst_interval":2.5, "bullet_speed":500.0, "bullet_dmg":3.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss2/Body/body.png",
 	 "bullet":"res://Assets/Sprites/Bosses/Boss2/Bullets/bullet.png", "bullet_px":38.0, "bullet_angle_offset":PI/4,
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss2/Telegraphs/telegraph.png",

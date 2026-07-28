@@ -132,6 +132,10 @@ var _charge_auto_timer: float = 0.0
 var _auto_ring_flash: float = 0.0
 var _auto_aimed_interval: float = 0.0
 var _auto_aimed_timer: float = 0.0
+var _auto_melee_interval: float = 0.0
+var _auto_melee_timer: float = 0.0
+var _auto_burst_interval: float = 0.0
+var _auto_burst_timer: float = 0.0
 var _auto_laser_interval: float = 0.0
 var _auto_laser_timer: float = 0.0
 var _auto_laser_telegraph: float = 0.0
@@ -172,6 +176,12 @@ func _ready() -> void:
 		if def.has("auto_aimed_interval"):
 			_auto_aimed_interval = def["auto_aimed_interval"]
 			_auto_aimed_timer = 1.0
+		if def.has("auto_melee_interval"):
+			_auto_melee_interval = def["auto_melee_interval"]
+			_auto_melee_timer = 0.5
+		if def.has("auto_burst_interval"):
+			_auto_burst_interval = def["auto_burst_interval"]
+			_auto_burst_timer = 2.0
 		if def.has("ringseq_interval"):
 			_ringseq_interval = def["ringseq_interval"]
 			_ringseq_speed = def.get("ringseq_speed", 200.0)
@@ -409,6 +419,37 @@ func _physics_process(delta: float) -> void:
 							new_shape.size = Vector2(sz, sz)
 							cs.shape = new_shape
 				get_parent().add_child(b)
+	# auto melee swipe (close-range boss)
+	if _auto_melee_interval > 0.0:
+		_auto_melee_timer -= delta
+		if _auto_melee_timer <= 0.0:
+			_auto_melee_timer = _auto_melee_interval
+			var pl = get_tree().get_first_node_in_group("player")
+			if is_instance_valid(pl):
+				var dist: float = global_position.distance_to(pl.global_position)
+				if dist <= _melee_trigger + 60.0:
+					_melee_dir = (pl.global_position - global_position).normalized()
+					_do_melee_swipe(pl)
+	# auto burst fire (ranged boss phase 2)
+	if _auto_burst_interval > 0.0:
+		_auto_burst_timer -= delta
+		if _auto_burst_timer <= 0.0:
+			_auto_burst_timer = _auto_burst_interval
+			var pl = get_tree().get_first_node_in_group("player")
+			if is_instance_valid(pl):
+				_burst_t = 1.5
+				_burst_speed = def.get("bullet_speed", 340.0)
+				_burst_dmg = def.get("bullet_dmg", 1.2)
+		# auto charge (periodic dash toward player)
+		if _charge_auto_interval > 0.0:
+			_charge_auto_timer -= delta
+			if _charge_auto_timer <= 0.0:
+				_charge_auto_timer = _charge_auto_interval
+				var pl = get_tree().get_first_node_in_group("player")
+				if is_instance_valid(pl):
+					_charge_dir = (pl.global_position - global_position).normalized()
+					_charge_dist = _charge_auto_distance
+					_charge_t = 0.42
 	var player: Node2D = get_tree().get_first_node_in_group("player") as Node2D
 	if _frozen or not is_instance_valid(player):
 		velocity = Vector2.ZERO
@@ -752,9 +793,9 @@ func _update_movement(delta: float, player: Node2D) -> void:
 	var pool: Array = _attack_pool()
 	# 近战型主动贴近；远程型保持中远距离风筝；其余维持偏好距离
 	var pref: float = _preferred_range * (0.5 if _enraged else 1.0)
-	if pool.has("melee"):
+	if pool.has("melee") or _auto_melee_interval > 0.0:
 		pref = (_melee_trigger + 15.0) * (0.75 if _enraged else 1.0)
-	elif pool.has("burst") or pool.has("aimed"):
+	elif pool.has("burst") or pool.has("aimed") or _auto_aimed_interval > 0.0 or _auto_burst_interval > 0.0:
 		pref = _preferred_range * (0.85 if _enraged else 1.1)   # 远程：狂暴也不贴脸
 	var spd: float = _base_speed * (1.8 if _enraged else 1.0)
 	if d > pref + 40.0:
