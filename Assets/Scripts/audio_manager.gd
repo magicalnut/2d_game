@@ -1,16 +1,23 @@
 extends Node
 
-## AudioManager（AutoLoad 单例）：管理全局 BGM、Boss 音乐、音效。
+## AudioManager（AutoLoad 单例）：管理全局 BGM 播放列表、Boss 音乐、音效。
 
 var _bgm_player: AudioStreamPlayer
 var _boss_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _boss_active: bool = false
 
+# 全局 BGM 播放列表：all → all1 → all2 → all → ...
+const _BGM_PATHS := [
+	"res://Assets/Audio/bgm_global.mp3",
+	"res://Assets/Audio/bgm_global1.mp3",
+	"res://Assets/Audio/bgm_global2.mp3",
+]
+var _bgm_index: int = 0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# 提高主总线音量（+10dB）
 	AudioServer.set_bus_volume_db(0, 10.0)
 	# 全局 BGM
 	_bgm_player = AudioStreamPlayer.new()
@@ -45,15 +52,17 @@ func _load_mp3(path: String) -> AudioStreamMP3:
 
 
 func _play_global() -> void:
-	var s := _load_mp3("res://Assets/Audio/bgm_global.mp3")
+	var s := _load_mp3(_BGM_PATHS[_bgm_index])
 	if s != null:
 		_bgm_player.stream = s
 		_bgm_player.play()
 
 
 func _on_bgm_finished() -> void:
-	if not _boss_active:
-		_play_global()
+	if _boss_active:
+		return
+	_bgm_index = (_bgm_index + 1) % _BGM_PATHS.size()
+	_play_global()
 
 
 func _on_boss_finished() -> void:
@@ -61,9 +70,11 @@ func _on_boss_finished() -> void:
 		_boss_player.play()
 
 
+# === 公开接口 ===
+
 func play_boss_music() -> void:
 	_boss_active = true
-	_bgm_player.stop()
+	_bgm_player.stream_paused = true   # 暂停全局 BGM，保留播放位置
 	var s := _load_mp3("res://Assets/Audio/bgm_boss.mp3")
 	if s != null:
 		_boss_player.stream = s
@@ -73,7 +84,7 @@ func play_boss_music() -> void:
 func stop_boss_music() -> void:
 	_boss_active = false
 	_boss_player.stop()
-	_play_global()
+	_bgm_player.stream_paused = false  # 从暂停位置继续播放全局 BGM
 
 
 func play_select_sfx() -> void:
