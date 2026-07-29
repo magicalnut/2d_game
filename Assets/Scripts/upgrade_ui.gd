@@ -168,7 +168,8 @@ func _show_cards() -> void:
 		if _player != null and _player.has_method("get_pending_levels") and _player.get_pending_levels() > 0:
 			_show_cards()
 		else:
-			get_tree().paused = false
+			var _t := get_tree()
+			if _t != null: _t.paused = false
 		return
 	for i in range(_cards.size()):
 		var card: Button = _cards[i]
@@ -252,7 +253,8 @@ func _show_cards() -> void:
 		card.set_meta("skill_id", id)
 		card.visible = true
 	_overlay.visible = true
-	get_tree().paused = true
+	var _t := get_tree()
+	if _t != null: _t.paused = true
 
 func _on_card_pressed(idx: int) -> void:
 	if idx < 0 or idx >= _cards.size():
@@ -269,7 +271,8 @@ func _on_card_pressed(idx: int) -> void:
 	if _player != null and _player.has_method("get_pending_levels") and _player.get_pending_levels() > 0:
 		_show_cards()
 	else:
-		get_tree().paused = false
+		var _t := get_tree()
+		if _t != null: _t.paused = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _overlay.visible:

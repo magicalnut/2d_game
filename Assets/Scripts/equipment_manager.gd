@@ -123,11 +123,17 @@ var diamonds: int = 0            # 总钻石（局外积累）
 var last_run_diamonds: int = 0   # 上局获得的钻石（结算显示用）
 var gear_inventory: Array = []   # 仓库：装备实例数组（每个元素是 Dictionary）
 
-# 持久化文件路径
-const SAVE_PATH: String = "user://equipment_save.json"
-
 func _ready() -> void:
-	_load_progress()
+	_sync_from_save_manager()
+	if SaveManager != null:
+		SaveManager.save_loaded.connect(_sync_from_save_manager)
+
+func _sync_from_save_manager() -> void:
+	if SaveManager == null:
+		return
+	slot_level = SaveManager.slot_level
+	diamonds = SaveManager.diamonds
+	gear_inventory = SaveManager.gear_inventory.duplicate(true)
 
 # ===== 槽位等级查询 =====
 
@@ -179,14 +185,14 @@ func upgrade_slot() -> bool:
 		return false
 	diamonds -= cost
 	slot_level += 1
-	_save_progress()
+	_save()
 	return true
 
 func add_diamonds(amount: int) -> void:
 	if amount > 0:
 		diamonds += amount
 		last_run_diamonds = amount
-		_save_progress()
+		_save()
 
 func calculate_run_diamonds(wave_reached: int, kills: int) -> int:
 	return int(wave_reached * 10 + kills * 0.5)
@@ -347,13 +353,13 @@ func add_to_inventory(inst: Dictionary) -> void:
 	if inst.is_empty() or not inst.has("def_id"):
 		return
 	gear_inventory.append(inst.duplicate(true))
-	_save_progress()
+	_save()
 
 func remove_from_inventory(uid: String) -> bool:
 	for i in range(gear_inventory.size()):
 		if gear_inventory[i].get("uid", "") == uid:
 			gear_inventory.remove_at(i)
-			_save_progress()
+			_save()
 			return true
 	return false
 
@@ -425,7 +431,7 @@ func synthesize(base_uid: String, fodder_uid: String) -> Dictionary:
 	diamonds -= cost
 	var new_inst: Dictionary = create_instance(base.get("def_id", ""), 1, target_rarity)
 	gear_inventory.append(new_inst)
-	_save_progress()
+	_save()
 	return new_inst
 
 func buy_random_gear(slot_id: String = "") -> Dictionary:
@@ -443,41 +449,20 @@ func buy_random_gear(slot_id: String = "") -> Dictionary:
 	add_to_inventory(inst)
 	return inst
 
-# ===== 持久化 =====
+# ===== 持久化（委托给 SaveManager） =====
 
-func _save_progress() -> void:
-	var data: Dictionary = {
-		"slot_level": slot_level,
-		"diamonds": diamonds,
-		"gear_inventory": gear_inventory
-	}
-	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(data))
-		file.close()
-
-func _load_progress() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
+func _save() -> void:
+	if SaveManager == null:
 		return
-	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var json_str: String = file.get_as_text()
-	file.close()
-	var parsed: Variant = JSON.parse_string(json_str)
-	if parsed is Dictionary:
-		var data: Dictionary = parsed
-		slot_level = clamp(data.get("slot_level", 1), 1, 12)
-		diamonds = max(data.get("diamonds", 0), 0)
-		var inv = data.get("gear_inventory", [])
-		if inv is Array:
-			gear_inventory = inv.duplicate(true)
+	SaveManager.slot_level = slot_level
+	SaveManager.diamonds = diamonds
+	SaveManager.gear_inventory = gear_inventory.duplicate(true)
+	SaveManager.save()
 
 func reset_progress() -> void:
 	slot_level = 1
 	diamonds = 0
 	last_run_diamonds = 0
 	gear_inventory.clear()
-	var dir: DirAccess = DirAccess.open("user://")
-	if dir != null and dir.file_exists("equipment_save.json"):
-		dir.remove("equipment_save.json")
+	if SaveManager != null:
+		SaveManager.reset_all()

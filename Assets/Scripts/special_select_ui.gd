@@ -183,7 +183,8 @@ func _show_cards() -> void:
 		else:
 			_setup_gear_card(card, content, ch)
 	_overlay.visible = true
-	get_tree().paused = true
+	var _t := get_tree()
+	if _t != null: _t.paused = true
 
 func _setup_skill_card(card: Button, content: MarginContainer, ch: Dictionary) -> void:
 	var id: String = ch["id"]
@@ -370,7 +371,8 @@ func _on_card_pressed(idx: int) -> void:
 			var scrap: int = max(5, gear_inst.get("rarity", 1) * 3)
 			EquipmentManager.add_diamonds(scrap)
 	_overlay.visible = false
-	get_tree().paused = false
+	var _t := get_tree()
+	if _t != null: _t.paused = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _overlay.visible:

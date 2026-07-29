@@ -478,6 +478,7 @@ func _show_challenge_picker() -> void:
 
 	# 加载角色专属装备配置
 	if RunStats != null:
+		RunStats.load_character_gear()
 		if RunStats.character_gear.has(id):
 			RunStats.equipped_gear = RunStats.character_gear[id].duplicate(true)
 		else:
@@ -603,6 +604,7 @@ func _show_challenge_picker() -> void:
 		RunStats.chosen_character = id
 		if RunStats != null:
 			RunStats.character_gear[id] = RunStats.equipped_gear.duplicate(true)
+			RunStats.save_character_gear()
 		RunStats.deploy_difficulty = 0
 		get_tree().change_scene_to_file(ENDLESS_SCENE))
 	endless.position = Vector2(130.0, 418.0)
@@ -611,6 +613,7 @@ func _show_challenge_picker() -> void:
 		RunStats.chosen_character = id
 		if RunStats != null:
 			RunStats.character_gear[id] = RunStats.equipped_gear.duplicate(true)
+			RunStats.save_character_gear()
 		RunStats.game_mode = "level"
 		get_tree().change_scene_to_file("res://Scenes/level_mode.tscn"))
 	levels.position = Vector2(350.0, 418.0)

@@ -50,19 +50,30 @@ func get_difficulty_base() -> float:
 
 # BOSS 引用：由 enemy(boss=true) 在 _ready 时写入、_die 时清空；HUD 读其血量显示 BOSS 血条
 var boss_ref: Node2D = null
+var skip_reset: bool = false
 
 var _last_scene: Node = null
 
 func _ready() -> void:
-	_load_level_progress()
+	_sync_from_save_manager()
+	if SaveManager != null:
+		SaveManager.save_loaded.connect(_sync_from_save_manager)
+
+func _sync_from_save_manager() -> void:
+	if SaveManager == null:
+		return
+	completed_levels = SaveManager.completed_levels.duplicate()
+	unlocked_levels = SaveManager.unlocked_levels.duplicate()
 
 func _process(delta: float) -> void:
 	var cs: Node = get_tree().current_scene
 	if cs != _last_scene:
 		_last_scene = cs
-		# 进入战斗场景（根节点名为 Main）即新一局：重置统计
 		if cs != null and cs.name == "Main":
-			_reset()
+			if skip_reset:
+				skip_reset = false
+			else:
+				_reset()
 		else:
 			boss_ref = null
 	# 仅在战斗中累计时间（进入 Main 后；暂停时本节点不跑，自然冻结）
@@ -91,7 +102,6 @@ func get_character_def() -> Dictionary:
 # ===== 关卡进度 API =====
 
 const LEVEL_ORDER: Array[String] = ["level_01", "level_02", "level_03"]
-const LEVEL_PROGRESS_PATH := "user://level_progress.json"
 var completed_levels: Array[String] = []
 var unlocked_levels: Array[String] = ["level_01"]
 
@@ -119,27 +129,32 @@ func complete_level(level_id: String) -> void:
 			unlocked_levels.append(id)
 	_save_level_progress()
 
-func _load_level_progress() -> void:
-	if not FileAccess.file_exists(LEVEL_PROGRESS_PATH):
-		return
-	var file := FileAccess.open(LEVEL_PROGRESS_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
-	if err != OK:
-		return
-	var data: Dictionary = json.get_data() as Dictionary
-	completed_levels.assign(data.get("completed_levels", []))
-	unlocked_levels.assign(data.get("unlocked_levels", ["level_01"]))
-
 func _save_level_progress() -> void:
-	var data := {
-		"completed_levels": completed_levels,
-		"unlocked_levels": unlocked_levels,
-	}
-	var file := FileAccess.open(LEVEL_PROGRESS_PATH, FileAccess.WRITE)
-	if file == null:
-		push_error("RunStats: failed to save level progress.")
+	if SaveManager == null:
 		return
-	file.store_string(JSON.stringify(data))
+	SaveManager.completed_levels = completed_levels.duplicate()
+	SaveManager.unlocked_levels = unlocked_levels.duplicate()
+	SaveManager.save()
+
+func save_character_gear() -> void:
+	if SaveManager == null:
+		return
+	SaveManager.character_gear = character_gear.duplicate(true)
+	SaveManager.save()
+
+func load_character_gear() -> void:
+	if SaveManager == null:
+		return
+	character_gear = SaveManager.character_gear.duplicate(true)
+
+func restore_from_save(data: Dictionary) -> void:
+	time_survived = data.get("time_survived", 0.0)
+	kills = data.get("kills", 0)
+	last_wave_reached = data.get("last_wave_reached", 0)
+	chosen_character = data.get("chosen_character", chosen_character)
+	deploy_difficulty = data.get("deploy_difficulty", deploy_difficulty)
+	game_mode = data.get("game_mode", game_mode)
+	selected_level_id = data.get("selected_level_id", selected_level_id)
+	var gear = data.get("equipped_gear", {})
+	if gear is Dictionary:
+		equipped_gear = gear.duplicate(true)

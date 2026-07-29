@@ -160,6 +160,21 @@ func _ready() -> void:
 	q.mouse_exited.connect(_on_q_hover.bind(q, false))
 	q.pressed.connect(_start_game)
 
+	# 设置按钮（右下角齿轮图标）
+	var settings_btn := Button.new()
+	settings_btn.text = "设置"
+	settings_btn.flat = true
+	settings_btn.add_theme_font_size_override("font_size", 26)
+	settings_btn.add_theme_color_override("font_color", Color(0.65, 0.72, 0.82))
+	settings_btn.add_theme_color_override("font_hover_color", Color(0.85, 0.90, 1.0))
+	settings_btn.add_theme_constant_override("outline_size", 2)
+	settings_btn.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	settings_btn.custom_minimum_size = Vector2(70, 40)
+	settings_btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	add_child(settings_btn)
+	settings_btn.position = Vector2(16, 16)
+	settings_btn.pressed.connect(_open_settings)
+
 	# 顶部淡出遮罩（点击开始后整屏淡出到角色选择）
 	var fade := ColorRect.new()
 	fade.color = Color(0, 0, 0, 1)
@@ -365,6 +380,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if ev is InputEventKey and ev.pressed and not ev.echo:
 		if ev.keycode == KEY_J:
 			_start_game()
+
+func _open_settings() -> void:
+	var ui := preload("res://Assets/Scripts/settings_ui.gd").new()
+	add_child(ui)
 
 func _start_game() -> void:
 	if _starting:

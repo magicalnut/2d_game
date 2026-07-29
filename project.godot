@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+SaveManager="*res://Assets/Scripts/save_manager.gd"
 WaveManager="*res://Assets/Scripts/wave_manager.gd"
 RunStats="*res://Assets/Scripts/run_stats.gd"
 SkillManager="*res://Assets/Scripts/skill_manager.gd"

@@ -99,10 +99,13 @@ func show_game_over() -> void:
 	# 保存本局装备到角色专属配置
 	if RunStats != null:
 		RunStats.character_gear[RunStats.chosen_character] = RunStats.equipped_gear.duplicate(true)
+		RunStats.save_character_gear()
 
 	_stats_label.text = "存活时间  %s\n到达等级  Lv.%d\n击杀敌人  %d\n到达波次  %d\n获得钻石  +%d" % [tstr, lvl, kills, wave, diamonds_earned]
 	_overlay.visible = true
-	get_tree().paused = true
+	var t := get_tree()
+	if t != null:
+		t.paused = true
 
 func show_level_complete(level_data: LevelData) -> void:
 	_title.text = "关卡完成"
@@ -127,6 +130,7 @@ func show_level_complete(level_data: LevelData) -> void:
 			if RunStats != null:
 				RunStats.equipped_gear[slot] = gear_inst
 				RunStats.character_gear[RunStats.chosen_character] = RunStats.equipped_gear.duplicate(true)
+				RunStats.save_character_gear()
 			reward_text += "首通奖励  %s\n" % EquipmentManager.get_gear_name(gear_id)
 
 	if RunStats != null:
@@ -140,8 +144,9 @@ func show_level_complete(level_data: LevelData) -> void:
 
 	_stats_label.text = "关卡  %s\n存活时间  %s\n击杀敌人  %d\n%s" % [level_data.display_name, tstr, kills, reward_text]
 	_overlay.visible = true
-	get_tree().paused = true
-
+	var t := get_tree()
+	if t != null:
+		t.paused = true
 
 func show_level_failed(reason: String) -> void:
 	_title.text = "关卡失败"
@@ -161,7 +166,9 @@ func show_level_failed(reason: String) -> void:
 
 	_stats_label.text = "关卡失败  %s\n存活时间  %s\n击杀敌人  %d" % [reason_text, tstr, kills]
 	_overlay.visible = true
-	get_tree().paused = true
+	var t := get_tree()
+	if t != null:
+		t.paused = true
 
 
 func _on_restart() -> void:

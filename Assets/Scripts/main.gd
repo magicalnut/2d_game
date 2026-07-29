@@ -7,12 +7,17 @@ func _ready() -> void:
 	if p != null and p.has_signal("died"):
 		p.died.connect(_on_player_died)
 
+	if SaveManager != null and SaveManager.pending_restore_slot >= 0:
+		_setup_restore()
+		return
+
 	if RunStats != null and RunStats.game_mode == "level":
 		_setup_level_mode()
 	else:
 		_setup_endless_mode()
 
 	if RunStats != null and EquipmentManager != null:
+		RunStats.load_character_gear()
 		var char_id: String = RunStats.chosen_character
 		if RunStats.character_gear.has(char_id):
 			RunStats.equipped_gear = RunStats.character_gear[char_id].duplicate(true)
@@ -28,15 +33,47 @@ func _ready() -> void:
 					if EquipmentManager.is_slot_unlocked(slot):
 						RunStats.equipped_gear[slot] = EquipmentManager.create_instance(defaults[char_id][slot], 1, 1)
 
-func _setup_endless_mode() -> void:
-	if RunStats != null and SkillManager != null:
-		SkillManager.grant(RunStats.get_character_def().get("start_weapon", ""))
+var _restore_player_state: Dictionary = {}
+var _restore_wave_state: Dictionary = {}
+
+func _setup_restore() -> void:
+	var data: Dictionary = SaveManager.consume_pending_restore()
+	_restore_player_state = data.get("player_state", {})
+	_restore_wave_state = data.get("wave_state", {})
+	var run_stats_data: Dictionary = data.get("run_stats", {})
+	var skills_data: Dictionary = data.get("skills", {})
+
+	if SkillManager != null and not skills_data.is_empty():
+		SkillManager.owned = skills_data.duplicate(true)
+
+	if RunStats != null and not run_stats_data.is_empty():
+		RunStats.restore_from_save(run_stats_data)
+
+	_create_special_select_ui()
+
+	call_deferred("_apply_restore_state")
+
+func _apply_restore_state() -> void:
+	var player := get_tree().get_first_node_in_group("player") as Node2D
+	if player != null and not _restore_player_state.is_empty() and player.has_method("restore_state"):
+		player.restore_state(_restore_player_state)
+	if WaveManager != null and not _restore_wave_state.is_empty() and WaveManager.has_method("restore_state"):
+		WaveManager.restore_state(_restore_wave_state)
+	_restore_player_state.clear()
+	_restore_wave_state.clear()
+
+func _create_special_select_ui() -> void:
 	var ss := CanvasLayer.new()
 	ss.name = "SpecialSelectUI"
 	ss.layer = 21
 	ss.process_mode = Node.PROCESS_MODE_ALWAYS
 	ss.set_script(preload("res://Assets/Scripts/special_select_ui.gd"))
 	add_child(ss)
+
+func _setup_endless_mode() -> void:
+	if RunStats != null and SkillManager != null:
+		SkillManager.grant(RunStats.get_character_def().get("start_weapon", ""))
+	_create_special_select_ui()
 
 func _setup_level_mode() -> void:
 	var level_id: String = RunStats.selected_level_id

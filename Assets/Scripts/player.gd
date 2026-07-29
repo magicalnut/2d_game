@@ -315,7 +315,7 @@ func apply_run_mods(hp_mult: float, speed_mult: float) -> void:
 	_apply_equipment_stats()   # 重新应用装备属性（叠加在角色基础之上）
 
 # 装备属性的基础值快照（防止重复叠加）
-var _base_max_hp: float = 15.0
+var _base_max_hp: float = 10000.0
 var _base_speed: float = 440.0
 var _base_bullet_damage: float = 1.0
 var _base_bullet_speed: float = 960.0
@@ -452,6 +452,63 @@ func _flash_green() -> void:
 	var tween := create_tween()
 	tween.tween_property(self, "modulate", Color(0.55, 1.0, 0.55), 0.1)
 	tween.tween_property(self, "modulate", Color(1.0, 1.0, 1.0), 0.35)
+
+func export_state() -> Dictionary:
+	return {
+		"hp": _hp,
+		"max_hp": max_hp,
+		"level": _level,
+		"exp": _exp,
+		"exp_to_next": _exp_to_next,
+		"pending_levels": _pending_levels,
+		"facing": facing,
+		"speed": speed,
+		"bullet_damage": bullet_damage,
+		"bullet_speed": bullet_speed,
+		"magnet_radius": magnet_radius,
+		"xp_pickup_mult": xp_pickup_mult,
+		"xp_rate_mult": xp_rate_mult,
+		"invuln": _invuln,
+		"stunned": _stunned,
+		"kb_vel_x": _kb_vel.x,
+		"kb_vel_y": _kb_vel.y,
+		"dead": _dead,
+		"position_x": global_position.x,
+		"position_y": global_position.y,
+		"base_max_hp": _base_max_hp,
+		"base_speed": _base_speed,
+		"base_bullet_damage": _base_bullet_damage,
+		"base_bullet_speed": _base_bullet_speed,
+		"base_magnet_radius": _base_magnet_radius,
+		"base_xp_pickup_mult": _base_xp_pickup_mult,
+	}
+
+func restore_state(data: Dictionary) -> void:
+	_hp = data.get("hp", max_hp)
+	max_hp = data.get("max_hp", max_hp)
+	_level = data.get("level", 1)
+	_exp = data.get("exp", 0.0)
+	_exp_to_next = data.get("exp_to_next", _exp_to_next)
+	_pending_levels = data.get("pending_levels", 0)
+	facing = data.get("facing", "toward")
+	speed = data.get("speed", speed)
+	bullet_damage = data.get("bullet_damage", bullet_damage)
+	bullet_speed = data.get("bullet_speed", bullet_speed)
+	magnet_radius = data.get("magnet_radius", magnet_radius)
+	xp_pickup_mult = data.get("xp_pickup_mult", xp_pickup_mult)
+	xp_rate_mult = data.get("xp_rate_mult", xp_rate_mult)
+	_invuln = data.get("invuln", 0.0)
+	_stunned = data.get("stunned", false)
+	_kb_vel = Vector2(data.get("kb_vel_x", 0.0), data.get("kb_vel_y", 0.0))
+	_dead = data.get("dead", false)
+	_base_max_hp = data.get("base_max_hp", _base_max_hp)
+	_base_speed = data.get("base_speed", _base_speed)
+	_base_bullet_damage = data.get("base_bullet_damage", _base_bullet_damage)
+	_base_bullet_speed = data.get("base_bullet_speed", _base_bullet_speed)
+	_base_magnet_radius = data.get("base_magnet_radius", _base_magnet_radius)
+	_base_xp_pickup_mult = data.get("base_xp_pickup_mult", _base_xp_pickup_mult)
+	global_position = Vector2(data.get("position_x", global_position.x), data.get("position_y", global_position.y))
+	queue_redraw()
 
 func _die() -> void:
 	_dead = true
