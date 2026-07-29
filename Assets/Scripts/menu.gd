@@ -160,19 +160,36 @@ func _ready() -> void:
 	q.mouse_exited.connect(_on_q_hover.bind(q, false))
 	q.pressed.connect(_start_game)
 
-	# 设置按钮（右下角齿轮图标）
+	# 设置按钮（左上角，缩小+字体变暗）：优先用美术图 Gear/settings.png，缺失则回退文字
 	var settings_btn := Button.new()
-	settings_btn.text = "设置"
 	settings_btn.flat = true
-	settings_btn.add_theme_font_size_override("font_size", 26)
-	settings_btn.add_theme_color_override("font_color", Color(0.65, 0.72, 0.82))
-	settings_btn.add_theme_color_override("font_hover_color", Color(0.85, 0.90, 1.0))
-	settings_btn.add_theme_constant_override("outline_size", 2)
-	settings_btn.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	settings_btn.custom_minimum_size = Vector2(70, 40)
+	var _settings_tex_path := "res://Assets/Sprites/UI/Gear/settings.png"
+	if ResourceLoader.exists(_settings_tex_path):
+		var _stx := load(_settings_tex_path) as Texture2D
+		settings_btn.icon = _stx
+		settings_btn.text = ""
+		settings_btn.expand_icon = true
+		settings_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var _sz := _stx.get_size()
+		if _sz.y > 57.2:
+			_sz = _sz * (57.2 / _sz.y)   # 限制高度（原 44 的 1.3 倍），避免过大
+		settings_btn.custom_minimum_size = _sz
+		for _st in ["normal", "hover", "pressed", "focus"]:
+			settings_btn.add_theme_stylebox_override(_st, StyleBoxEmpty.new())
+		var _base_mod := Color(1.0, 1.0, 1.0)
+		settings_btn.mouse_entered.connect(func(): settings_btn.modulate = Color(1.3, 1.3, 1.3))
+		settings_btn.mouse_exited.connect(func(): settings_btn.modulate = _base_mod)
+	else:
+		settings_btn.text = "设置"
+		settings_btn.add_theme_font_size_override("font_size", 26)
+		settings_btn.add_theme_color_override("font_color", Color(0.62, 0.70, 0.80))
+		settings_btn.add_theme_color_override("font_hover_color", Color(0.82, 0.90, 1.0))
+		settings_btn.add_theme_constant_override("outline_size", 2)
+		settings_btn.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		settings_btn.custom_minimum_size = Vector2(70, 36)
 	settings_btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	add_child(settings_btn)
-	settings_btn.position = Vector2(16, 16)
+	settings_btn.position = Vector2(12, 12)
 	settings_btn.pressed.connect(_open_settings)
 
 	# 顶部淡出遮罩（点击开始后整屏淡出到角色选择）

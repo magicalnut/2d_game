@@ -42,23 +42,41 @@ func _build() -> void:
 	_overlay.add_child(vbox)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 22)
+	vbox.add_theme_constant_override("separation", 5)
+	# 整体把面板往上平移（负间隔会被 Godot 夹成 0、居中又会吸收一半位移，所以用整体平移才看得出来）
+	vbox.offset_top = -14.0
+	vbox.offset_bottom = -14.0
 
-	var title := Label.new()
-	vbox.add_child(title)
-	title.text = "已暂停"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 52)
-	title.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
-	title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	title.add_theme_constant_override("outline_size", 5)
+	var _title_h := 60.0
+	var _title_tex_path := "res://Assets/Sprites/UI/TextBits/pause_title.png"
+	if ResourceLoader.exists(_title_tex_path):
+		var _ttx := load(_title_tex_path) as Texture2D
+		_title_h = _ttx.get_size().y
+		var title := TextureRect.new()
+		title.texture = _ttx
+		title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		title.custom_minimum_size = _ttx.get_size()
+		title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(title)
+	else:
+		var title := Label.new()
+		vbox.add_child(title)
+		title.text = "已暂停"
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.add_theme_font_size_override("font_size", 52)
+		title.add_theme_color_override("font_color", Color(0.82, 0.90, 1.0))
+		title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		title.add_theme_constant_override("outline_size", 5)
 
-	vbox.add_child(_spacer(14.0))
-	vbox.add_child(_make_button("继续游戏", _on_resume, Color(0.18, 0.30, 0.22)))
-	vbox.add_child(_make_button("保存游戏", _on_save_click, Color(0.18, 0.28, 0.35)))
-	vbox.add_child(_make_button("读取存档", _on_load_click, Color(0.25, 0.20, 0.30)))
-	vbox.add_child(_make_button("重新开始", _on_restart, Color(0.20, 0.18, 0.30)))
-	vbox.add_child(_make_button("返回主菜单", _on_menu, Color(0.20, 0.18, 0.30)))
+	var _btn_max_h: float = clamp(_title_h * 0.6, 40.0, 76.0)
+	var _btn_max_w := 300.0
+	vbox.add_child(_spacer(0.0))
+	vbox.add_child(_make_button("继续游戏", _on_resume, Color(0.18, 0.30, 0.22), "res://Assets/Sprites/UI/Buttons/pause_resume.png", _btn_max_w, _btn_max_h))
+	vbox.add_child(_make_button("保存游戏", _on_save_click, Color(0.18, 0.28, 0.35), "res://Assets/Sprites/UI/Buttons/pause_save.png", _btn_max_w, _btn_max_h))
+	vbox.add_child(_make_button("读取存档", _on_load_click, Color(0.25, 0.20, 0.30), "res://Assets/Sprites/UI/Buttons/pause_load.png", _btn_max_w, _btn_max_h))
+	vbox.add_child(_make_button("重新开始", _on_restart, Color(0.20, 0.18, 0.30), "res://Assets/Sprites/UI/Buttons/pause_restart.png", _btn_max_w, _btn_max_h))
+	vbox.add_child(_make_button("返回主菜单", _on_menu, Color(0.20, 0.18, 0.30), "res://Assets/Sprites/UI/Buttons/pause_menu.png", _btn_max_w, _btn_max_h))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
@@ -145,7 +163,7 @@ func _open_slot_ui() -> void:
 	title.text = "存档" if _slot_mode == "save" else "读档"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+	title.add_theme_color_override("font_color", Color(0.30, 0.52, 0.36))
 	title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	title.add_theme_constant_override("outline_size", 4)
 	vbox.add_child(title)
@@ -166,15 +184,15 @@ func _open_slot_ui() -> void:
 			var ti: String = _format_time(meta.get("time_survived", 0.0))
 			btn.text = "存档 %d  %s %s  %s  %s" % [i + 1, ch, wi, ti, ts]
 		btn.add_theme_font_size_override("font_size", 18)
-		btn.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+		btn.add_theme_color_override("font_color", Color(0.82, 0.90, 1.0))
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.18, 0.20, 0.28)
-		sb.border_color = Color(0.35, 0.40, 0.50)
+		sb.bg_color = Color(0.14, 0.17, 0.22)
+		sb.border_color = Color(0.45, 0.52, 0.62)
 		sb.set_border_width_all(2)
 		sb.set_corner_radius_all(10)
 		btn.add_theme_stylebox_override("normal", sb)
 		var sbh := sb.duplicate()
-		sbh.bg_color = Color(0.25, 0.28, 0.38)
+		sbh.bg_color = Color(0.22, 0.27, 0.34)
 		btn.add_theme_stylebox_override("hover", sbh)
 		btn.pressed.connect(_on_slot_selected.bind(i))
 		vbox.add_child(btn)
@@ -187,8 +205,8 @@ func _open_slot_ui() -> void:
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.add_theme_font_size_override("font_size", 22)
 	var sb2 := StyleBoxFlat.new()
-	sb2.bg_color = Color(0.22, 0.25, 0.32)
-	sb2.border_color = Color(0.5, 0.55, 0.65)
+	sb2.bg_color = Color(0.16, 0.19, 0.25)
+	sb2.border_color = Color(0.55, 0.62, 0.72)
 	sb2.set_border_width_all(2)
 	sb2.set_corner_radius_all(12)
 	cancel.add_theme_stylebox_override("normal", sb2)
@@ -280,20 +298,35 @@ func _spacer(h: float) -> Control:
 	c.custom_minimum_size = Vector2(0.0, h)
 	return c
 
-func _make_button(text: String, cb: Callable, accent: Color) -> Button:
+func _make_button(text: String, cb: Callable, accent: Color, tex_path := "", max_w := 300.0, max_h := 64.0) -> Button:
 	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(240.0, 56.0)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	b.add_theme_font_size_override("font_size", 26)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = accent
-	sb.border_color = Color(0.9, 0.9, 0.95)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(14)
-	b.add_theme_stylebox_override("normal", sb)
-	var sbh := sb.duplicate()
-	sbh.bg_color = accent * 1.3
-	b.add_theme_stylebox_override("hover", sbh)
+	if tex_path != "" and ResourceLoader.exists(tex_path):
+		# 素材已是完整按钮外观：去掉原色块框，缩放到上限内显示（保持比「已暂停」小）
+		var tex := load(tex_path) as Texture2D
+		var tsz := tex.get_size()
+		var _scale: float = min(max_w / tsz.x, max_h / tsz.y, 1.0)
+		b.icon = tex
+		b.text = ""
+		b.expand_icon = true
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.custom_minimum_size = tsz * _scale
+		for st in ["normal", "hover", "pressed", "focus"]:
+			b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+		b.mouse_entered.connect(func(): b.modulate = Color(1.25, 1.25, 1.25))
+		b.mouse_exited.connect(func(): b.modulate = Color(1, 1, 1))
+	else:
+		b.text = text
+		b.custom_minimum_size = Vector2(240.0, 56.0)
+		b.add_theme_font_size_override("font_size", 26)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = accent
+		sb.border_color = Color(0.9, 0.9, 0.95)
+		sb.set_border_width_all(2)
+		sb.set_corner_radius_all(14)
+		b.add_theme_stylebox_override("normal", sb)
+		var sbh := sb.duplicate()
+		sbh.bg_color = accent * 1.3
+		b.add_theme_stylebox_override("hover", sbh)
 	b.pressed.connect(cb)
 	return b
