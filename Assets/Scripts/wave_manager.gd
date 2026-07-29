@@ -256,12 +256,16 @@ func _on_wave_cleared() -> void:
 # 进入 BOSS 战：刷出 BOSS，切到 BOSS_FIGHT 状态，专心等它被击败
 func _enter_boss_fight() -> void:
 	_state = State.BOSS_FIGHT
+	if AudioManager != null:
+		AudioManager.play_boss_music()
 	_spawn_boss()
 
 # BOSS 被击败：给一次特殊技能选择，然后继续下一波（无尽间歇）
 func _on_boss_defeated() -> void:
 	_boss_defeat_count += 1
 	emit_signal("special_choice_ready")
+	if AudioManager != null:
+		AudioManager.stop_boss_music()
 	if level_mode_active:
 		_state = State.VICTORY
 		stage_spawn_done.emit()

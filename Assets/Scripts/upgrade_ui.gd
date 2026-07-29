@@ -259,6 +259,8 @@ func _on_card_pressed(idx: int) -> void:
 		return
 	if not _cards[idx].visible:
 		return
+	if AudioManager != null:
+		AudioManager.play_select_sfx()
 	var id: String = _cards[idx].get_meta("skill_id")
 	SkillManager.grant(id)
 	_overlay.visible = false

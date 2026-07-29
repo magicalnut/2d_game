@@ -22,6 +22,7 @@ RunStats="*res://Assets/Scripts/run_stats.gd"
 SkillManager="*res://Assets/Scripts/skill_manager.gd"
 FXManager="*res://Assets/Scripts/fx_manager.gd"
 EquipmentManager="*res://Assets/Scripts/equipment_manager.gd"
+AudioManager="*res://Assets/Scripts/audio_manager.gd"
 
 [display]
 

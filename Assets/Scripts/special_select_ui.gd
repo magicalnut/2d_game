@@ -348,6 +348,8 @@ func _on_card_pressed(idx: int) -> void:
 		return
 	if idx >= _current_choices.size():
 		return
+	if AudioManager != null:
+		AudioManager.play_select_sfx()
 	var ch: Dictionary = _current_choices[idx]
 	if ch["type"] == "skill":
 		var id: String = ch["id"]
