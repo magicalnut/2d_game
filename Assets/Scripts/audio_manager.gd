@@ -7,9 +7,8 @@ var _boss_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _boss_active: bool = false
 
-# 全局 BGM 播放列表：all → all1 → all2 → all → ...
+# 全局 BGM 播放列表：all1 → all2 → all1 → ...（已移除 bgm_global）
 const _BGM_PATHS := [
-	"res://Assets/Audio/bgm_global.mp3",
 	"res://Assets/Audio/bgm_global1.mp3",
 	"res://Assets/Audio/bgm_global2.mp3",
 ]
@@ -28,9 +27,9 @@ func _ready() -> void:
 	# Boss 音乐
 	_boss_player = AudioStreamPlayer.new()
 	_boss_player.name = "BossBGM"
-	_boss_player.bus = "Master"
 	_boss_player.finished.connect(_on_boss_finished)
 	add_child(_boss_player)
+	_ensure_boss_bus()   # 为 Boss 音乐创建专用的「柔和」总线（低通滤波 + 降音量）
 	# 音效
 	_sfx_player = AudioStreamPlayer.new()
 	_sfx_player.name = "SFX"
@@ -68,6 +67,22 @@ func _on_bgm_finished() -> void:
 func _on_boss_finished() -> void:
 	if _boss_active:
 		_boss_player.play()
+
+
+# 为 Boss 音乐创建专用总线：低通滤波（切掉刺耳高频）+ 适度降音量，
+# 让原本偏紧张的 Boss 曲风听起来更柔和。原文件 bgm_boss.mp3 不动，随时可还原。
+func _ensure_boss_bus() -> void:
+	var idx := AudioServer.get_bus_index("BossBGM")
+	if idx == -1:
+		AudioServer.add_bus()
+		idx = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, "BossBGM")
+		var lp := AudioEffectLowPassFilter.new()
+		lp.cutoff_hz = 2200.0     # 只保留中低频，去掉尖刺高频 → 温暖柔和
+		lp.resonance = 0.4
+		AudioServer.add_bus_effect(idx, lp)
+		AudioServer.set_bus_volume_db(idx, -4.0)   # 比全局 BGM 轻 4dB
+	_boss_player.bus = "BossBGM"
 
 
 # === 公开接口 ===

@@ -191,15 +191,17 @@ func _boss_fire_ring(player: Node2D) -> void:
 		b.damage = 1.0
 		get_parent().add_child(b)
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, is_crit: bool = false) -> void:
 	if _dead:
 		return
 	hp -= amount
 	queue_redraw()   # 受伤后刷新血条
-	# 受击火花：短暂冷却，避免密集火力时火花刷屏
+	# 受击火花 + 受击数字：短暂冷却，避免密集火力时刷屏
 	if _hit_fx_timer <= 0.0 and FXManager != null:
 		var scale_mult: float = 2.4 if boss else 1.0
 		FXManager.spawn_hit_spark(global_position, scale_mult)
+		# 受击数字从「头顶」出现（hp_bar_y 为头顶上方偏移），原地出现后淡出
+		FXManager.spawn_damage_number(global_position + Vector2(0.0, hp_bar_y), amount)
 		_hit_fx_timer = 0.08
 	if hp <= 0.0:
 		_die()

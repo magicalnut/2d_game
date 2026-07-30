@@ -23,7 +23,11 @@ const LEVELUP_DUR: float = 0.75
 
 const POOL_LIMIT: int = 24   # 每种特效最多缓存 24 个节点
 
+# —— 受击数字 ——
+const DMG_SCRIPT := preload("res://Assets/Scripts/damage_number.gd")
+
 var _pools: Dictionary = {}
+var _dmg_pool: Array = []
 
 func _ready() -> void:
 	_pools = {"hit": [], "poof": [], "levelup": []}
@@ -78,3 +82,34 @@ func recycle(node: Node2D, type: String) -> void:
 		_pools[type].append(node)
 	else:
 		node.queue_free()
+
+# ===================== 受击数字 =====================
+func spawn_damage_number(pos: Vector2, amount: float) -> void:
+	var world := get_tree().current_scene
+	if world == null:
+		return
+	var dn: DamageNumber
+	if not _dmg_pool.is_empty():
+		dn = _dmg_pool.pop_back()
+		if dn.get_parent() == null:
+			world.add_child(dn)
+		dn.reset_state()
+	else:
+		dn = DMG_SCRIPT.new()
+		dn.process_mode = Node.PROCESS_MODE_ALWAYS
+		dn.top_level = true
+		dn.z_index = 20
+		world.add_child(dn)
+	dn.popup(amount, pos)
+
+# 数字动画结束后回收进池（超过池上限直接释放）
+func recycle_damage_number(dn: DamageNumber) -> void:
+	if dn == null or not is_instance_valid(dn):
+		return
+	var parent := dn.get_parent()
+	if parent != null:
+		parent.remove_child(dn)
+	if _dmg_pool.size() < POOL_LIMIT:
+		_dmg_pool.append(dn)
+	else:
+		dn.queue_free()

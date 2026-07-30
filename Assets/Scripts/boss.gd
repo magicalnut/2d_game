@@ -157,6 +157,7 @@ var _sickle_tex: Texture2D = null
 @onready var anim_body: AnimatedSprite2D = $AnimatedBody
 @onready var placeholder: Polygon2D = $Placeholder
 var _body_base_scale: float = 1.0
+@export var head_offset: float = -120.0   # 受击数字出生点：相对 Boss 原点向上偏移（头顶上方），按实际体型调
 var _use_animated: bool = false
 
 func _ready() -> void:
@@ -1007,7 +1008,7 @@ func _draw() -> void:
 				draw_line(Vector2.ZERO, end, Color(1.0, 0.4, 0.1, 0.6 * a), 3.0)
 
 # —— 受伤 / 死亡 ——
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, is_crit: bool = false) -> void:
 	if _dead:
 		return
 	hp -= amount
@@ -1015,6 +1016,8 @@ func take_damage(amount: float) -> void:
 		anim_body.play("hurt")
 	if _hit_fx_timer <= 0.0 and FXManager != null:
 		FXManager.spawn_hit_spark(global_position, 2.4)
+		# 受击数字从「头顶」出现（head_offset 为头顶上方偏移），原地出现后淡出
+		FXManager.spawn_damage_number(global_position + Vector2(0.0, head_offset), amount)
 		_hit_fx_timer = 0.08
 	if hp <= 0.0:
 		_die()
