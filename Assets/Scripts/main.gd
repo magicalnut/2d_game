@@ -40,6 +40,8 @@ func _setup_restore() -> void:
 	var data: Dictionary = SaveManager.consume_pending_restore()
 	_restore_player_state = data.get("player_state", {})
 	_restore_wave_state = data.get("wave_state", {})
+	# 进入游戏默认满血：不继承存档里的血量（restore_state 缺失 hp 时回退到 max_hp）
+	_restore_player_state.erase("hp")
 	var run_stats_data: Dictionary = data.get("run_stats", {})
 	var skills_data: Dictionary = data.get("skills", {})
 

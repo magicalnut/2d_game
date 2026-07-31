@@ -39,6 +39,7 @@ var level_mode_result: String = ""
 var equipped_gear: Dictionary = {}    # 本局携带的装备实例 {slot_id: gear_instance}
 var character_gear: Dictionary = {}  # 角色专属装备配置 {character_id: {slot_id: gear_instance}}
 var last_wave_reached: int = 0       # 本局到达的最高波次（用于钻石结算）
+var run_diamonds: int = 0            # 本局已获得钻石（HUD 实时显示，结算/分解时累加）
 
 # 难度基础偏移：作为 wave_manager 难度倍率公式的常数项，让手动难度真正生效
 func get_difficulty_base() -> float:
@@ -83,6 +84,7 @@ func _process(delta: float) -> void:
 func _reset() -> void:
 	time_survived = 0.0
 	kills = 0
+	run_diamonds = 0
 	# boss_ref 不由 _reset 清空：防止 _process(_reset) 覆盖 boss._ready() 已设的引用
 	# boss_ref 在离开 Main 时由 _process() else 分支清空，或在 boss._die() 中清空
 
@@ -158,3 +160,4 @@ func restore_from_save(data: Dictionary) -> void:
 	var gear = data.get("equipped_gear", {})
 	if gear is Dictionary:
 		equipped_gear = gear.duplicate(true)
+	run_diamonds = data.get("run_diamonds", 0)

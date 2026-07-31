@@ -2,6 +2,7 @@ extends Node
 
 const SAVE_PATH: String = "user://save.json"
 const SLOTS_PATH: String = "user://slots.json"
+const SLOT_COUNT: int = 4   # 存档槽总数（2×2 布局）
 
 signal save_loaded
 
@@ -172,13 +173,23 @@ func consume_pending_restore() -> Dictionary:
 func _read_slots_file() -> Array:
 	var file := FileAccess.open(SLOTS_PATH, FileAccess.READ)
 	if file == null:
-		return [null, null, null]
+		return _empty_slots()
 	var json_str: String = file.get_as_text()
 	file.close()
 	var parsed = JSON.parse_string(json_str)
-	if parsed is Array and parsed.size() == 3:
-		return parsed
-	return [null, null, null]
+	if parsed is Array:
+		# 兼容旧版 3 槽存档：读到几个就保留几个，再补齐到 SLOT_COUNT
+		var arr: Array = parsed
+		while arr.size() < SLOT_COUNT:
+			arr.append(null)
+		return arr
+	return _empty_slots()
+
+func _empty_slots() -> Array:
+	var a: Array = []
+	for i in SLOT_COUNT:
+		a.append(null)
+	return a
 
 func _write_slots_file(slots: Array) -> void:
 	var file := FileAccess.open(SLOTS_PATH, FileAccess.WRITE)

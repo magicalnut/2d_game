@@ -398,7 +398,7 @@ func _spawn_boss() -> void:
 	if scene_root == null:
 		return
 	scene_root.add_child(e)
-	_show_banner("⚠ %s 降临 ⚠" % d["name"], 2.2)
+	# boss 名字改由 HUD 顶部 _boss_label 显示，不再单独弹横幅（避免与顶部重复）
 
 # BOSS 召唤小怪：在 center 周围环形生成 n 只随机普通敌人（阶段2+使用）
 func spawn_minions(center: Vector2, n: int) -> void:

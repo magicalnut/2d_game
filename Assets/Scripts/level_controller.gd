@@ -291,7 +291,7 @@ func _next_level() -> void:
 			"interval": cfg["interval"],
 			"timer": 0.5,
 		})
-	_show_banner("第 %d 关 - %s" % [_level+1, BOSS_DEFS[_level]["name"]], 2.5)
+	_show_banner("第 %d 关" % [_level+1], 2.5)
 	_state = "fighting"
 
 func _pick_spawn_pos() -> Vector2:
@@ -317,7 +317,7 @@ func _spawn_boss() -> void:
 	# 注册到 RunStats 供 HUD 读取血条
 	if RunStats != null:
 		RunStats.boss_ref = b
-	_show_banner("⚠ %s 降临 ⚠" % d["name"], 2.0)
+	# boss 名字改由 HUD 顶部 _boss_label 显示，不再单独弹横幅（避免与顶部重复）
 
 func _show_victory() -> void:
 	_state = "victory"; _show_banner("全部通关！", 5.0)

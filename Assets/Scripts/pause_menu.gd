@@ -8,6 +8,7 @@ const MENU_SCENE := "res://Scenes/menu.tscn"
 var _overlay: Control
 var _open: bool = false
 var _slot_overlay: Control = null
+var _slot_panel: Panel = null   # 存档窗口面板（用于延迟居中）
 var _slot_mode: String = ""  # "save" or "load"
 
 func _ready() -> void:
@@ -144,25 +145,35 @@ func _open_slot_ui() -> void:
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_slot_overlay.add_child(dim)
 
-	var panel := ColorRect.new()
-	panel.color = Color(0.12, 0.14, 0.18, 0.95)
-	panel.custom_minimum_size = Vector2(420, 360)
-	panel.size = Vector2(420, 360)
+	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(600, 540)
+	panel.size = Vector2(600, 540)
+	var sb_bg := StyleBoxTexture.new()
+	sb_bg.texture = load("res://Assets/Sprites/UI/info_panel.png")
+	sb_bg.texture_margin_left = 28.0
+	sb_bg.texture_margin_top = 28.0
+	sb_bg.texture_margin_right = 28.0
+	sb_bg.texture_margin_bottom = 28.0
+	panel.add_theme_stylebox_override("panel", sb_bg)
 	_slot_overlay.add_child(panel)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_slot_panel = panel
+	call_deferred("_center_slot_panel")   # 等布局完成再按视口尺寸居中（避免创建瞬间父尺寸未定导致偏到一侧）
 
 	var vbox := VBoxContainer.new()
 	panel.add_child(vbox)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vbox.add_theme_constant_override("separation", 12)
-	vbox.add_theme_constant_override("margin_left", 25)
-	vbox.add_theme_constant_override("margin_right", 25)
-	vbox.add_theme_constant_override("margin_top", 20)
+	# Panel 不按 StyleBox 边距内缩子控件，VBox 也不识别 margin_* 主题常量，
+	# 手动设 offset 内缩；offset_top 多留白，避免「读档」标题顶出框上沿
+	vbox.offset_left = 36.0
+	vbox.offset_right = -36.0
+	vbox.offset_top = 42.0
+	vbox.offset_bottom = -30.0
 
 	var title := Label.new()
 	title.text = "存档" if _slot_mode == "save" else "读档"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color(0.30, 0.52, 0.36))
 	title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	title.add_theme_constant_override("outline_size", 4)
@@ -170,34 +181,18 @@ func _open_slot_ui() -> void:
 
 	vbox.add_child(_spacer(6))
 
-	for i in range(3):
-		var meta: Dictionary = SaveManager.get_slot_meta(i) if SaveManager != null else {}
-		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(0, 64)
-		btn.size_flags_horizontal = Control.SIZE_FILL
-		if meta.is_empty():
-			btn.text = "存档 %d  （空）" % (i + 1)
-		else:
-			var ts: String = meta.get("timestamp", "???")
-			var wi: String = meta.get("wave_info", "")
-			var ch: String = meta.get("character", "???")
-			var ti: String = _format_time(meta.get("time_survived", 0.0))
-			btn.text = "存档 %d  %s %s  %s  %s" % [i + 1, ch, wi, ti, ts]
-		btn.add_theme_font_size_override("font_size", 18)
-		btn.add_theme_color_override("font_color", Color(0.82, 0.90, 1.0))
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.14, 0.17, 0.22)
-		sb.border_color = Color(0.45, 0.52, 0.62)
-		sb.set_border_width_all(2)
-		sb.set_corner_radius_all(10)
-		btn.add_theme_stylebox_override("normal", sb)
-		var sbh := sb.duplicate()
-		sbh.bg_color = Color(0.22, 0.27, 0.34)
-		btn.add_theme_stylebox_override("hover", sbh)
-		btn.pressed.connect(_on_slot_selected.bind(i))
-		vbox.add_child(btn)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 16)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	grid.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(grid)
+	var slot_n: int = SaveManager.SLOT_COUNT if SaveManager != null else 4
+	for i in range(slot_n):
+		grid.add_child(_make_slot_card(i))
 
-	vbox.add_child(_spacer(6))
+	vbox.add_child(_spacer(10))
 
 	var cancel := Button.new()
 	cancel.text = "返回"
@@ -217,6 +212,93 @@ func _close_slot_ui() -> void:
 	if _slot_overlay != null:
 		_slot_overlay.queue_free()
 		_slot_overlay = null
+	_slot_panel = null
+
+# 等布局完成后再把存档面板按视口尺寸精确居中（与 settings_ui 同套路）
+func _center_slot_panel() -> void:
+	if _slot_panel == null:
+		return
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	if vp == Vector2.ZERO:
+		return
+	_slot_panel.position = (vp - _slot_panel.size) * 0.5
+
+# 构造一个存档卡（2×2 网格里的单个格子）
+func _make_slot_card(index: int) -> Button:
+	var meta: Dictionary = SaveManager.get_slot_meta(index) if SaveManager != null else {}
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(230, 140)
+	card.text = ""   # 内容用子节点显示，避免默认文本占位
+	# 卡片底色（正常 / 悬停 / 按下）
+	var sb_card := StyleBoxFlat.new()
+	sb_card.bg_color = Color(0.14, 0.17, 0.22)
+	sb_card.border_color = Color(0.45, 0.52, 0.62)
+	sb_card.set_border_width_all(2)
+	sb_card.set_corner_radius_all(12)
+	card.add_theme_stylebox_override("normal", sb_card)
+	var sb_hover := sb_card.duplicate()
+	sb_hover.bg_color = Color(0.22, 0.27, 0.34)
+	sb_hover.border_color = Color(0.62, 0.70, 0.85)
+	card.add_theme_stylebox_override("hover", sb_hover)
+	var sb_press := sb_hover.duplicate()
+	sb_press.bg_color = Color(0.28, 0.34, 0.42)
+	card.add_theme_stylebox_override("pressed", sb_press)
+	# 内容容器
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.add_theme_constant_override("separation", 6)
+	# VBox 不识别 margin_* 主题常量，手动设 offset 内缩，让文字不贴卡片边框
+	box.offset_left = 16.0
+	box.offset_right = -16.0
+	box.offset_top = 14.0
+	box.offset_bottom = -14.0
+	card.add_child(box)
+	# 标题行：存档 N
+	var head := Label.new()
+	head.text = "存档 %d" % (index + 1)
+	head.add_theme_font_size_override("font_size", 22)
+	head.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+	box.add_child(head)
+	if meta.is_empty():
+		var empty := Label.new()
+		empty.text = "（空）"
+		empty.add_theme_font_size_override("font_size", 18)
+		empty.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
+		box.add_child(empty)
+		# 读档模式下空格子不可点（不能读空档）
+		if _slot_mode == "load":
+			card.disabled = true
+	else:
+		var ch: String = meta.get("character", "???")
+		var wi: String = meta.get("wave_info", "")
+		var ti: String = _format_time(meta.get("time_survived", 0.0))
+		var ts: String = meta.get("timestamp", "???")
+		var l1 := Label.new()
+		l1.text = "角色：%s" % ch
+		l1.add_theme_font_size_override("font_size", 16)
+		l1.add_theme_color_override("font_color", Color(0.80, 0.88, 1.0))
+		l1.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(l1)
+		var l2 := Label.new()
+		l2.text = "进度：%s" % wi
+		l2.add_theme_font_size_override("font_size", 16)
+		l2.add_theme_color_override("font_color", Color(0.78, 0.85, 0.95))
+		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(l2)
+		var l3 := Label.new()
+		l3.text = "存活：%s" % ti
+		l3.add_theme_font_size_override("font_size", 16)
+		l3.add_theme_color_override("font_color", Color(0.78, 0.85, 0.95))
+		l3.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(l3)
+		var l4 := Label.new()
+		l4.text = ts
+		l4.add_theme_font_size_override("font_size", 13)
+		l4.add_theme_color_override("font_color", Color(0.55, 0.60, 0.70))
+		l4.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(l4)
+	card.pressed.connect(_on_slot_selected.bind(index))
+	return card
 
 func _on_slot_selected(index: int) -> void:
 	if _slot_mode == "save":
@@ -261,6 +343,7 @@ func _gather_save_state() -> Dictionary:
 			"game_mode": RunStats.game_mode,
 			"selected_level_id": RunStats.selected_level_id,
 			"equipped_gear": RunStats.equipped_gear.duplicate(true),
+			"run_diamonds": RunStats.run_diamonds,
 		}
 	var skills_data: Dictionary = {}
 	if SkillManager != null:

@@ -334,9 +334,16 @@ func _apply_equipment_stats() -> void:
 	var pickup_bonus: float = gear_stats.get("pickup_radius", 0.0)
 	var exp_bonus: float = gear_stats.get("exp_bonus", 0.0)
 
-	# 从基础值重新计算，避免重复叠加
+	# 从基础值重新计算，避免重复叠加（幂等）
+	var prev_max_hp: float = max_hp
 	max_hp = _base_max_hp + hp_bonus
-	if _hp > max_hp:
+	if max_hp > prev_max_hp:
+		# 装上提升上限的装备（如石肤护符 +8）时，把当前血量同步补上这部分增量，
+		# 避免读档 / 换装后血条"空出"这部分上限（正好 8 点的情况）。
+		_hp += (max_hp - prev_max_hp)
+		if _hp > max_hp:
+			_hp = max_hp
+	elif _hp > max_hp:
 		_hp = max_hp
 	speed = _base_speed + spd_bonus
 	bullet_damage = _base_bullet_damage + atk_bonus
@@ -484,8 +491,17 @@ func export_state() -> Dictionary:
 	}
 
 func restore_state(data: Dictionary) -> void:
-	_hp = data.get("hp", max_hp)
-	max_hp = data.get("max_hp", max_hp)
+	# 读档进游戏：血量重置为满血，不继承存档里残存的剩余血量。
+	# 先恢复基础属性，再据此重新计算 max_hp（叠加当前装备加成），
+	# 最后无条件满血——避免"读档后血条显示几乎空"的观感问题。
+	_base_max_hp = data.get("base_max_hp", _base_max_hp)
+	_base_speed = data.get("base_speed", _base_speed)
+	_base_bullet_damage = data.get("base_bullet_damage", _base_bullet_damage)
+	_base_bullet_speed = data.get("base_bullet_speed", _base_bullet_speed)
+	_base_magnet_radius = data.get("base_magnet_radius", _base_magnet_radius)
+	_base_xp_pickup_mult = data.get("base_xp_pickup_mult", _base_xp_pickup_mult)
+	_apply_equipment_stats()   # 用恢复出的基础值 + 当前装备重算 max_hp
+	_hp = max_hp               # 读档默认满血
 	_level = data.get("level", 1)
 	_exp = data.get("exp", 0.0)
 	_exp_to_next = data.get("exp_to_next", _exp_to_next)
@@ -501,12 +517,6 @@ func restore_state(data: Dictionary) -> void:
 	_stunned = data.get("stunned", false)
 	_kb_vel = Vector2(data.get("kb_vel_x", 0.0), data.get("kb_vel_y", 0.0))
 	_dead = data.get("dead", false)
-	_base_max_hp = data.get("base_max_hp", _base_max_hp)
-	_base_speed = data.get("base_speed", _base_speed)
-	_base_bullet_damage = data.get("base_bullet_damage", _base_bullet_damage)
-	_base_bullet_speed = data.get("base_bullet_speed", _base_bullet_speed)
-	_base_magnet_radius = data.get("base_magnet_radius", _base_magnet_radius)
-	_base_xp_pickup_mult = data.get("base_xp_pickup_mult", _base_xp_pickup_mult)
 	global_position = Vector2(data.get("position_x", global_position.x), data.get("position_y", global_position.y))
 	queue_redraw()
 

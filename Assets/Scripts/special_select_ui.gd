@@ -370,6 +370,8 @@ func _on_card_pressed(idx: int) -> void:
 			# 无法装备：拆解为钻石（安慰奖）
 			var scrap: int = max(5, gear_inst.get("rarity", 1) * 3)
 			EquipmentManager.add_diamonds(scrap)
+			if RunStats != null:
+				RunStats.run_diamonds += scrap
 	_overlay.visible = false
 	var _t := get_tree()
 	if _t != null: _t.paused = false

@@ -88,6 +88,8 @@ func show_game_over() -> void:
 	if EquipmentManager != null:
 		diamonds_earned = EquipmentManager.calculate_run_diamonds(wave, kills)
 		EquipmentManager.add_diamonds(diamonds_earned)
+		if RunStats != null:
+			RunStats.run_diamonds += diamonds_earned
 
 	# 局终装备掉落：≥3波掉一件白色装备到仓库
 	if EquipmentManager != null and wave >= 3:

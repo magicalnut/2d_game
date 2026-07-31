@@ -29,13 +29,7 @@ var _q_glow_tween: Tween = null   # 黄色描边强度补间；每次切换前 k
 var _has_q_img: bool = false
 var _fade: ColorRect = null
 var _title_chars: Array = []   # 标题逐字容器（整图切片模式），供入场掉落动画使用
-var _shake_targets: Array = []  # 需要「鼠标靠近摇晃」的标题字符控件（图片模式=逐字切片，回退=整行子节点）
-var _title_ready: bool = false  # 入场动画结束后再启用摇晃，避免与掉落补间冲突
 var _sk_menu: Node = null        # 初始页角落骷髅层（标题出现后再触发滚入）
-var _char_base: Array = []      # 每个字符静止时的基准 position
-var _char_shake: Array = []     # 每个字符当前摇晃幅度包络 0..1（near 时升、离开时降）
-var _char_phase: Array = []     # 每个字符摇晃相位（错峰，避免五个字同步抖）
-const TITLE_NEAR: float = 40.0  # 鼠标距字符多近算「靠近」（像素）；调大=更容易触发摇晃
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -86,12 +80,6 @@ func _ready() -> void:
 	title_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	title_row.add_child(_make_title(fnt))
 	vbox.add_child(title_row)
-	# 摇晃目标：有整图切片则逐字，否则用回退整行的各子节点
-	if _title_chars.is_empty():
-		_shake_targets = title_row.get_children()
-	else:
-		_shake_targets = _title_chars
-
 	# 「?」开始键：透明 Button 接收输入；底下 TextureRect 显示「?」并带黄色描边 shader。
 	# 鼠标贴近时：描边亮起（找到你了）+ 停止呼吸（屏住呼吸）。
 	var q_wrap := Control.new()
@@ -274,18 +262,6 @@ func _ready() -> void:
 		_qfly.parallel().tween_property(q_wrap, "modulate:a", 1.0, 1.25)
 	_qfly.tween_callback(_begin_idle.bind(q_wrap))
 
-	# 等待标题入场（掉落 + 绑带）完成，再启用「鼠标靠近摇晃」，并捕获各字静止基准位置
-	await get_tree().create_timer(0.10 * float(_shake_targets.size()) + 0.75).timeout
-	# 关键：必须先把三个摇晃数组填满，再把 _title_ready 置 true。
-	# 否则 _process 的守卫(if not _title_ready)一旦放行，就会访问尚未填充的
-	# _char_shake/_char_phase 空数组 → "Out of bounds get index '0'"。
-	# （切勿在填充数组前 await——await 挂起期间 _process 仍每帧运行。）
-	for i in _shake_targets.size():
-		_char_base.append(_shake_targets[i].position)
-		_char_shake.append(0.0)
-		_char_phase.append(randf() * 100.0)
-	_title_ready = true
-
 # 落地后在字上方绷出几根垂直向下的线，模拟被从上方拉住、不再往下掉
 func _add_straps(cb: Control, idx: int) -> void:
 	var sz: Vector2 = cb.custom_minimum_size
@@ -323,39 +299,6 @@ func _begin_idle(q_wrap: Control) -> void:
 	_q_idle_tween.tween_property(q_wrap, "scale", Vector2(1.0, 1.0), 1.4).set_ease(Tween.EASE_IN_OUT)
 
 # 鼠标靠近标题字符时，字会紧张地摇晃（旋转抖动 + 轻微位移），离开后平息
-func _process(delta: float) -> void:
-	if not _title_ready:
-		return
-	# 二重保险：摇晃数组尚未与目标一一对齐时，本帧不处理（防止任何时序竞态越界）
-	if _char_shake.size() < _shake_targets.size() or _char_phase.size() < _shake_targets.size():
-		return
-	# 取鼠标在「画布全局坐标」的位置：Godot 4.7 中 get_viewport() 返回 Window，
-	# 其上无 get_global_mouse_position()（旧 API 已移除），改用 get_mouse_position() + 画布变换。
-	var vp := get_viewport()
-	var mp: Vector2 = vp.get_mouse_position()
-	mp = vp.get_canvas_transform().affine_inverse() * mp
-	for i in _shake_targets.size():
-		var cb: Control = _shake_targets[i]
-		var rect: Rect2 = cb.get_global_rect()
-		# 鼠标到字包围盒的最近距离（含字外「靠近」区，不含则=0）
-		var dx: float = max(rect.position.x - mp.x, 0.0, mp.x - rect.end.x)
-		var dy: float = max(rect.position.y - mp.y, 0.0, mp.y - rect.end.y)
-		var d: float = sqrt(dx * dx + dy * dy)
-		var near: bool = d < TITLE_NEAR
-		var amp: float = _char_shake[i]
-		if near:
-			amp = min(1.0, amp + delta * 5.0)       # 靠近：幅度快速升到 1
-		else:
-			amp = max(0.0, amp - delta * 7.0)       # 离开：幅度快速回落
-		_char_shake[i] = amp
-		_char_phase[i] += delta * (36.0 if near else 18.0)
-		var a: float = amp
-		var rot: float = sin(_char_phase[i]) * 0.05 * a            # 旋转抖动（≈±3°）
-		var jx: float = sin(_char_phase[i] * 1.3 + 1.0) * 2.0 * a  # 水平轻微位移
-		var jy: float = cos(_char_phase[i] * 1.7 + 2.0) * 2.0 * a  # 垂直轻微位移
-		cb.rotation = rot
-		cb.position = (_char_base[i] as Vector2) + Vector2(jx, jy)
-
 func _set_q_intensity(v: float) -> void:
 	if _q_shader != null:
 		_q_shader.set_shader_parameter("intensity", v)
