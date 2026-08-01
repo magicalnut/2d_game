@@ -123,6 +123,17 @@ func _ensure_fresh_scene() -> void:
 				skip_reset = false
 				return
 			_wave_index = -1
+			# 关键：以下累计量原本漏重置，导致「新开一局却继承上一局的层数/波数/难度」——
+			# 新档一进场就是「无尽 · 第 N 层」、难度倍率残留，玩家瞬间被秒。必须一并清零。
+			_endless_stage = 0
+			_endless_wave_count = 0
+			_waves_cleared = 0
+			_boss_defeat_count = 0
+			_run_time = 0.0
+			_level_stage_repeating = false
+			_current_stage_config = {}
+			if RunStats != null:
+				RunStats.last_wave_reached = 0
 			var is_level: bool = RunStats != null and RunStats.game_mode == "level"
 			if is_level:
 				level_mode_active = true

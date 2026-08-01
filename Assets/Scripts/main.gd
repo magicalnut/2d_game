@@ -16,23 +16,6 @@ func _ready() -> void:
 	else:
 		_setup_endless_mode()
 
-	if RunStats != null and EquipmentManager != null:
-		RunStats.load_character_gear()
-		var char_id: String = RunStats.chosen_character
-		if RunStats.character_gear.has(char_id):
-			RunStats.equipped_gear = RunStats.character_gear[char_id].duplicate(true)
-		if RunStats.equipped_gear.is_empty():
-			var defaults: Dictionary = {
-				"wanderer": {"rune": "rune_of_wind", "amulet": "amulet_of_vitality"},
-				"brute":    {"rune": "rune_of_fire",  "amulet": "amulet_of_stone"},
-				"mage":     {"rune": "rune_of_fire",  "amulet": "amulet_of_vitality"},
-				"ranger":   {"rune": "rune_of_wind",  "amulet": "amulet_of_stone"},
-			}
-			if defaults.has(char_id):
-				for slot in defaults[char_id].keys():
-					if EquipmentManager.is_slot_unlocked(slot):
-						RunStats.equipped_gear[slot] = EquipmentManager.create_instance(defaults[char_id][slot], 1, 1)
-
 var _restore_player_state: Dictionary = {}
 var _restore_wave_state: Dictionary = {}
 
@@ -50,6 +33,19 @@ func _setup_restore() -> void:
 
 	if RunStats != null and not run_stats_data.is_empty():
 		RunStats.restore_from_save(run_stats_data)
+
+	# 关卡模式快照读档：restore_from_save 已把 game_mode/selected_level_id 恢复为存档值，
+	# 但本函数不像普通开局那样走 _setup_level_mode，必须在此重建 LevelManager，
+	# 否则关卡模式会被静默降级成无尽模式（玩家读档后"只能进无尽模式"）。
+	if RunStats != null and RunStats.game_mode == "level":
+		_setup_restore_level_mode()
+
+	# 读档：恢复该存档槽固化的养成数据（槽位等级/钻石/仓库）。放在 restore 之后，
+	# 确保用存档值覆盖任何残留的运行时值。
+	if EquipmentManager != null:
+		var equip: Dictionary = data.get("equip", {})
+		if not equip.is_empty():
+			EquipmentManager.apply_equip_state(equip)
 
 	_create_special_select_ui()
 
@@ -99,6 +95,27 @@ func _setup_level_mode() -> void:
 	lm.set("level_data", level_data)
 	add_child(lm)
 
+	if lm.has_signal("level_completed"):
+		lm.level_completed.connect(_on_level_completed)
+	if lm.has_signal("level_failed"):
+		lm.level_failed.connect(_on_level_failed)
+
+# 快照读档专用的关卡模式建立：不重复授予技能（SkillManager.owned 已由 _setup_restore 恢复）、
+# 不重复创建 special_select_ui（_setup_restore 已建），只重建 LevelManager 让关卡目标/进度接管。
+func _setup_restore_level_mode() -> void:
+	var level_id: String = RunStats.selected_level_id
+	if level_id.is_empty():
+		push_warning("main.gd: restore level mode but selected_level_id empty; skipping LevelManager.")
+		return
+	var level_data: LevelData = _load_level_data(level_id)
+	if level_data == null:
+		push_warning("main.gd: restore failed to load level data '%s'; skipping LevelManager." % level_id)
+		return
+	var lm := Node.new()
+	lm.name = "LevelManager"
+	lm.set_script(preload("res://Assets/Scripts/level_manager.gd"))
+	lm.set("level_data", level_data)
+	add_child(lm)
 	if lm.has_signal("level_completed"):
 		lm.level_completed.connect(_on_level_completed)
 	if lm.has_signal("level_failed"):

@@ -368,16 +368,15 @@ func _process(_delta: float) -> void:
 	if _exp_bar.size.x > 0.0:
 		var r: float = clamp(_exp_bar.value, 0.0, 1.0)
 		_exp_tick_bg.position.x = clamp(r * _exp_bar.size.x - tick_half, 0.0, _exp_bar.size.x - tick_w)
-	# 计时 / 击杀 / 钻石（RunStats / EquipmentManager 单例）
+	# 计时 / 击杀 / 钻石（RunStats 单例）—— 数值滚动 + 变化弹跳
 	if RunStats != null:
 		_timer_label.text = RunStats.get_time_string()
-		_kill_label.text = str(RunStats.kills)
-	if RunStats != null:
-		_diamond_label.text = str(RunStats.run_diamonds)
+		_animate_stat(_kill_label, RunStats.kills, _delta)
+		_animate_stat(_diamond_label, RunStats.run_diamonds, _delta)
 	if RunStats != null and RunStats.boss_ref != null and is_instance_valid(RunStats.boss_ref):
 		_boss_bar.visible = true
 		_boss_label.visible = true
-		_wave_label.visible = false   # boss 战期间顶部整行只显示 boss 名字
+		_wave_label.visible = true    # boss 战期间照常显示波次：波次(y8~30)/计时(y32~54)/boss血条(y78~94) 三行互不重叠
 		var bn: Variant = RunStats.boss_ref.get("boss_name")
 		if bn == null or bn == "":
 			_boss_label.text = "BOSS"
@@ -394,6 +393,38 @@ func _process(_delta: float) -> void:
 		_wave_label.text = WaveManager.get_wave_label()
 	# 刷新装备槽图标
 	_refresh_gear_slots()
+
+func _animate_stat(label: Label, target: int, delta: float) -> void:
+	## 右上角数值动态感：数值平滑滚动(count-up) + 变化瞬间放大回弹 + 提亮闪。
+	## 动画状态存放在 label 的 meta，无需额外成员变量，击杀/钻石两处复用。
+	if not label.has_meta("disp"):
+		label.set_meta("disp", float(target))
+		label.set_meta("bump", 0.0)
+		label.set_meta("last_t", target)
+	var disp: float = label.get_meta("disp")
+	var bump: float = label.get_meta("bump")
+	var last_t: int = label.get_meta("last_t")
+	if target != last_t:
+		bump = 1.0            # 目标改变 -> 触发一次弹跳
+		last_t = target
+	if disp != float(target):
+		# count-up：差值越大步长越快，保证大跳也顺滑
+		var step: float = max(1.0, abs(float(target) - disp) * delta * 12.0)
+		disp = move_toward(disp, float(target), step)
+		label.text = str(int(round(disp)))
+	if bump > 0.0:
+		bump = max(0.0, bump - delta * 5.0)   # ~0.2s 衰减
+		var s: float = 1.0 + sin(bump * PI) * 0.35
+		label.pivot_offset = label.size * 0.5
+		label.scale = Vector2(s, s)
+		var g: float = bump                     # 0..1 提亮闪
+		label.modulate = Color(1.0 + g * 0.8, 1.0 + g * 0.8, 1.0 + g * 0.8)
+	else:
+		label.scale = Vector2(1.0, 1.0)
+		label.modulate = Color(1.0, 1.0, 1.0)
+	label.set_meta("disp", disp)
+	label.set_meta("bump", bump)
+	label.set_meta("last_t", last_t)
 
 func _build_gear_slots() -> void:
 	## 在左下角状态面板上方构建6个微型装备槽图标

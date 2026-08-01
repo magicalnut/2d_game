@@ -66,7 +66,7 @@ func _build_ui() -> void:
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.add_theme_font_size_override("font_size", 34)
-	_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.36))
+	_title.add_theme_color_override("font_color", UIColors.GOLD)
 	_title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_title.add_theme_constant_override("outline_size", 4)
 
@@ -147,7 +147,7 @@ func _build_ui() -> void:
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_hint.add_theme_font_size_override("font_size", 20)
-	_hint.add_theme_color_override("font_color", Color(0.70, 0.74, 0.82))
+	_hint.add_theme_color_override("font_color", UIColors.GRAY)
 
 func _on_leveled_up() -> void:
 	if _overlay.visible:
@@ -214,7 +214,7 @@ func _show_cards() -> void:
 			var cur: int = int(ch["stars"])
 			var mx: int = int(def["max_stars"])
 			star_lbl.text = "★".repeat(cur) + "☆".repeat(mx - cur)
-			star_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+			star_lbl.add_theme_color_override("font_color", UIColors.GOLD)
 			star_lbl.position = Vector2(pad_x, bottom_y)
 			star_lbl.size = Vector2(inner_w, 28.0)
 			bottom_y -= 4.0
@@ -225,7 +225,7 @@ func _show_cards() -> void:
 		name_lbl.text = def["name"]
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.add_theme_font_size_override("font_size", 24)
-		name_lbl.add_theme_color_override("font_color", Color(0.96, 0.98, 1.0))
+		name_lbl.add_theme_color_override("font_color", UIColors.WHITE)
 		name_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 		name_lbl.add_theme_constant_override("outline_size", 2)
 		name_lbl.position = Vector2(pad_x, bottom_y - 30.0)
@@ -246,7 +246,7 @@ func _show_cards() -> void:
 			desc_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 			desc_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 			desc_lbl.add_theme_font_size_override("font_size", 14)
-			desc_lbl.add_theme_color_override("font_color", Color(0.80, 0.83, 0.90))
+			desc_lbl.add_theme_color_override("font_color", UIColors.GRAY)
 			desc_lbl.position = Vector2(pad_x, desc_y)
 			desc_lbl.size = Vector2(inner_w, desc_block_h)
 

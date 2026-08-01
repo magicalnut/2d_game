@@ -38,8 +38,28 @@ var level_mode_result: String = ""
 # ===== 装备系统 =====
 var equipped_gear: Dictionary = {}    # 本局携带的装备实例 {slot_id: gear_instance}
 var character_gear: Dictionary = {}  # 角色专属装备配置 {character_id: {slot_id: gear_instance}}
+
+# 新游戏开局装备 = 空。
+# 存档隔离的关键点：新一局绝不读 character_gear / 其它存档槽，也绝不凭空发放装备。
+# 新档状态为 Lv.1 / 0 钻 / 空仓库，仓库里没有的东西自然不该被穿在身上；
+# 装备一律由玩家在局内获取或在整备页从本槽仓库装配，从而不影响角色原有的攻击手感与数值。
+func apply_default_gear() -> void:
+	equipped_gear = {}
 var last_wave_reached: int = 0       # 本局到达的最高波次（用于钻石结算）
-var run_diamonds: int = 0            # 本局已获得钻石（HUD 实时显示，结算/分解时累加）
+var run_diamonds: int = 0            # 本局已获得钻石（HUD 实时显示，由 refresh_run_diamonds() 汇总）
+var extra_diamonds: int = 0          # 局内即时到手的钻石（装备分解等，已直接入账），只参与 HUD 汇总
+
+# 本局「待结算」钻石：与 EquipmentManager.calculate_run_diamonds 保持同一公式。
+# 提前算出来让 HUD 能实时反映收益，而不是等到死亡结算才一次性跳数字。
+func get_pending_diamonds() -> int:
+	# 复用结算同一函数，避免 HUD 预估与死亡结算两套公式漂移导致数字跳变
+	if EquipmentManager != null:
+		return EquipmentManager.calculate_run_diamonds(last_wave_reached, kills)
+	return int(last_wave_reached * 10 + kills * 0.5)
+
+# HUD 显示值 = 待结算（波次 / 击杀） + 已即时到手（分解等）
+func refresh_run_diamonds() -> void:
+	run_diamonds = get_pending_diamonds() + extra_diamonds
 
 # 难度基础偏移：作为 wave_manager 难度倍率公式的常数项，让手动难度真正生效
 func get_difficulty_base() -> float:
@@ -80,13 +100,32 @@ func _process(delta: float) -> void:
 	# 仅在战斗中累计时间（进入 Main 后；暂停时本节点不跑，自然冻结）
 	if _last_scene != null and _last_scene.name == "Main":
 		time_survived += delta
+		refresh_run_diamonds()   # HUD 钻石实时增长（原先只在死亡结算时才加，局内恒显 0）
 
 func _reset() -> void:
 	time_survived = 0.0
 	kills = 0
 	run_diamonds = 0
+	extra_diamonds = 0
+	last_wave_reached = 0
 	# boss_ref 不由 _reset 清空：防止 _process(_reset) 覆盖 boss._ready() 已设的引用
 	# boss_ref 在离开 Main 时由 _process() else 分支清空，或在 boss._die() 中清空
+
+# 开「新游戏」时显式重置本局所有运行时状态，避免继承上一次（读档/游玩）残留的全局单例数据。
+# 注意：chosen_character 由 character_setup 页写入、character_gear / completed_levels / unlocked_levels 为全局养成数据，均不在此重置。
+func reset_for_new_run() -> void:
+	time_survived = 0.0
+	kills = 0
+	run_diamonds = 0
+	extra_diamonds = 0
+	last_wave_reached = 0
+	deploy_difficulty = 0
+	game_mode = ""
+	selected_level_id = ""
+	level_mode_result = ""
+	skip_reset = false
+	boss_ref = null
+	apply_default_gear()   # 关键：新游戏装备 = 空，既不继承其它存档/上一局，也不凭空发放装备
 
 func add_kill() -> void:
 	kills += 1
@@ -161,3 +200,9 @@ func restore_from_save(data: Dictionary) -> void:
 	if gear is Dictionary:
 		equipped_gear = gear.duplicate(true)
 	run_diamonds = data.get("run_diamonds", 0)
+	extra_diamonds = run_diamonds - get_pending_diamonds()   # 反推局内即时到手部分，避免读档后 HUD 数字倒退
+	if extra_diamonds < 0:
+		extra_diamonds = 0
+	# 兜底：还原发生在 main.gd 的 _ready，而 _process 会在下一帧检测到「场景变为 Main」并调用 _reset()，
+	# 那会把刚恢复的存活时间/击杀/波次全部清零。置 skip_reset 让这一次场景切换跳过重置。
+	skip_reset = true

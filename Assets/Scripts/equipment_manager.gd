@@ -124,16 +124,27 @@ var last_run_diamonds: int = 0   # 上局获得的钻石（结算显示用）
 var gear_inventory: Array = []   # 仓库：装备实例数组（每个元素是 Dictionary）
 
 func _ready() -> void:
-	_sync_from_save_manager()
-	if SaveManager != null:
-		SaveManager.save_loaded.connect(_sync_from_save_manager)
+	# 局外养成（slot_level/diamonds/gear_inventory）不再从全局 SaveManager 同步；
+	# 初始即干净的默认值（Lv.1 / 0钻 / 空仓库）。进入某个存档（新建或读档）时，
+	# 由 menu.gd / character_setup.gd / main.gd 显式同步该槽的 equip 数据。
+	pass
 
-func _sync_from_save_manager() -> void:
-	if SaveManager == null:
+func reset_equip_to_default() -> void:
+	# 新建存档：养成数据回到干净起点（Lv.1 / 0钻 / 空仓库 / 只开符文槽）
+	slot_level = 1
+	diamonds = 0
+	last_run_diamonds = 0
+	gear_inventory = []
+
+func apply_equip_state(equip: Dictionary) -> void:
+	# 读档：用该存档槽固化过的养成数据覆盖当前运行时值
+	if equip.is_empty():
 		return
-	slot_level = SaveManager.slot_level
-	diamonds = SaveManager.diamonds
-	gear_inventory = SaveManager.gear_inventory.duplicate(true)
+	slot_level = clamp(int(equip.get("slot_level", 1)), 1, 12)
+	diamonds = max(int(equip.get("diamonds", 0)), 0)
+	var inv = equip.get("gear_inventory", [])
+	if inv is Array:
+		gear_inventory = inv.duplicate(true)
 
 # ===== 槽位等级查询 =====
 
@@ -451,13 +462,26 @@ func buy_random_gear(slot_id: String = "") -> Dictionary:
 
 # ===== 持久化（委托给 SaveManager） =====
 
+# 当前局外养成状态快照（写入存档槽 state["equip"] 用）
+func get_equip_state() -> Dictionary:
+	return {
+		"slot_level": slot_level,
+		"diamonds": diamonds,
+		"gear_inventory": gear_inventory.duplicate(true)
+	}
+
 func _save() -> void:
 	if SaveManager == null:
 		return
-	SaveManager.slot_level = slot_level
-	SaveManager.diamonds = diamonds
-	SaveManager.gear_inventory = gear_inventory.duplicate(true)
-	SaveManager.save()
+	if SaveManager.active_slot >= 0:
+		# 关键：养成数据写入「当前绑定的存档槽」，而非全局，杜绝跨槽污染
+		SaveManager.write_slot_equip(SaveManager.active_slot, get_equip_state())
+	else:
+		# 未绑定任何存档槽（理论不应发生）：退回全局兜底，保持兼容
+		SaveManager.slot_level = slot_level
+		SaveManager.diamonds = diamonds
+		SaveManager.gear_inventory = gear_inventory.duplicate(true)
+		SaveManager.save()
 
 func reset_progress() -> void:
 	slot_level = 1

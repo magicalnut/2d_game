@@ -50,7 +50,7 @@ func _build() -> void:
 	title.text = "设置"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+	title.add_theme_color_override("font_color", UIColors.GOLD)
 	title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	title.add_theme_constant_override("outline_size", 4)
 	vbox.add_child(title)
@@ -58,7 +58,7 @@ func _build() -> void:
 	var vol_label := Label.new()
 	vol_label.text = "主音量"
 	vol_label.add_theme_font_size_override("font_size", 18)
-	vol_label.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90))
+	vol_label.add_theme_color_override("font_color", UIColors.GRAY)
 	vbox.add_child(vol_label)
 
 	var vol := HSlider.new()
@@ -75,13 +75,13 @@ func _build() -> void:
 	_volume_value_label.text = "%d%%" % int(vol.value * 100.0)
 	_volume_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_volume_value_label.add_theme_font_size_override("font_size", 18)
-	_volume_value_label.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	_volume_value_label.add_theme_color_override("font_color", UIColors.MUTED)
 	vbox.add_child(_volume_value_label)
 
 	var full := CheckBox.new()
 	full.text = "全屏模式"
 	full.add_theme_font_size_override("font_size", 18)
-	full.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90))
+	full.add_theme_color_override("font_color", UIColors.GRAY)
 	full.button_pressed = SaveManager.settings.get("fullscreen", false) if SaveManager != null else false
 	full.toggled.connect(_on_fullscreen_toggled)
 	vbox.add_child(full)

@@ -4,7 +4,7 @@ class_name DamageNumber
 ## 受击数字：敌对单位受击时在其头顶显示一次，原地出现后淡出隐去。
 ## 数字用 0-9 的精灵图拼接（支持两位数）：文件名 num_0.png ~ num_9.png，
 ## 放在 Assets/Sprites/UI/DamageNumbers/ 下。
-## 颜色为美术图自带（单一固定色），不再按伤害变色。
+## 颜色为美术图自带（原始绿色），不再按伤害变色。
 ## 尺寸随伤害微微放大（GROW_K / GROW_MAX）；整体基准尺寸由 DMG_SCALE 控制。
 
 const DMG_SCALE: float = 0.10       # 整体基准尺寸系数（旋钮：想整体放大就调大，想缩小就调小）
@@ -16,7 +16,7 @@ const POP_START_SCALE: float = 0.6  # 弹入起点的初始缩放（略小于目
 const FADE_TIME: float = 0.32       # 隐去淡出时长
 const DIGIT_GAP: float = 2.0        # 相邻数字之间的像素间隙
 const NUM_PREFIX: String = "res://Assets/Sprites/UI/DamageNumbers/num_"
-const NUM_TINT := Color(1.0, 1.0, 1.0, 1.0)   # 单一固定颜色；若数字图是白色想染色，改这里（如 Color(1,0.4,0.4)）
+const NUM_TINT := Color(1.0, 1.0, 1.0, 1.0)   # 伤害数字颜色（绿，与经验球同色是原始设计）；数字图是白模想换色改这里
 
 var _tween: Tween = null
 
@@ -32,7 +32,7 @@ func reset_state() -> void:
 	_tween = null
 	for c in get_children():
 		c.free()
-	modulate = NUM_TINT
+	modulate = NUM_TINT   # 重置占位
 	scale = Vector2.ONE
 	visible = false
 
@@ -44,7 +44,7 @@ func popup(amount: float, origin: Vector2) -> void:
 	_build_digits(text)
 	global_position = origin
 	visible = true
-	modulate = Color(NUM_TINT.r, NUM_TINT.g, NUM_TINT.b, 1.0)
+	modulate = NUM_TINT   # 数字图自带的原始绿色（白染色 = 原色直显）
 
 	# 伤害越大，数字微微放大
 	var grow: float = clamp(1.0 + amount * GROW_K, 1.0, GROW_MAX)

@@ -105,24 +105,6 @@ func _ready() -> void:
 	if RunStats != null and SkillManager != null:
 		SkillManager.grant(RunStats.get_character_def().get("start_weapon", ""))
 
-	# 装备初始保底
-	if RunStats != null and EquipmentManager != null:
-		RunStats.load_character_gear()
-		var char_id: String = RunStats.chosen_character
-		if RunStats.character_gear.has(char_id):
-			RunStats.equipped_gear = RunStats.character_gear[char_id].duplicate(true)
-		if RunStats.equipped_gear.is_empty():
-			var defaults: Dictionary = {
-				"wanderer": {"rune": "rune_of_wind", "amulet": "amulet_of_vitality"},
-				"brute":    {"rune": "rune_of_fire",  "amulet": "amulet_of_stone"},
-				"mage":     {"rune": "rune_of_fire",  "amulet": "amulet_of_vitality"},
-				"ranger":   {"rune": "rune_of_wind",  "amulet": "amulet_of_stone"},
-			}
-			if defaults.has(char_id):
-				for slot in defaults[char_id].keys():
-					if EquipmentManager.is_slot_unlocked(slot):
-						RunStats.equipped_gear[slot] = EquipmentManager.create_instance(defaults[char_id][slot], 1, 1)
-
 	# HUD
 	_hud = CanvasLayer.new()
 	_hud.name = "HUD"
