@@ -44,6 +44,11 @@ func _on_body_entered(body: Node) -> void:
 			body.stun(stun_duration)
 		_spawn_impact(global_position)
 		queue_free()
+	elif body.is_in_group("crystal"):
+		if body.has_method("take_damage"):
+			body.take_damage(damage)
+		_spawn_impact(global_position)
+		queue_free()
 
 # 命中玩家时播放专属命中特效（放到场景根，用树级补间，子弹销毁也不影响特效淡出）
 func _spawn_impact(pos: Vector2) -> void:

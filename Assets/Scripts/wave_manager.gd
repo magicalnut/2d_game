@@ -39,30 +39,30 @@ const BOSS_SCENE := preload("res://Assets/Sprites/Bosses/boss.tscn")
 # 字段：name 名称 / tint 无素材时占位圆颜色 / hp 基础血量 / 其余见各 path/bullet/telegraph/impact 键
 #       speed 移速 / touch 接触伤害 / exp 经验 / pool 该BOSS偏好的攻击组（可选，缺省用通用池）
 const BOSS_DEFS: Array = [
-	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1000.0, "speed":240.0, "touch":4.0, "exp":45.0, "pool":[], "auto_melee_interval":0.8, "auto_charge_interval":4.0, "charge_distance":700.0,
+	{"name":"老赛",   "tint":Color(0.90,0.22,0.20), "hp":1500.0, "speed":240.0, "touch":4.0, "exp":45.0, "pool":[], "auto_melee_interval":0.8, "auto_charge_interval":4.0, "charge_distance":700.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss1/Body/body.png",
 	 "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss1/Bullets/bullet.png",
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss1/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss1/Impacts/impact.png"},
-	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1300.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool":[], "auto_aimed_interval":0.8, "auto_burst_interval":2.5, "bullet_speed":500.0, "bullet_dmg":3.0,
+	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1800.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool":[], "auto_aimed_interval":0.8, "auto_burst_interval":2.5, "bullet_speed":500.0, "bullet_dmg":3.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss2/Body/body.png",
 	 "bullet":"res://Assets/Sprites/Bosses/Boss2/Bullets/bullet.png", "bullet_px":38.0, "bullet_angle_offset":PI/4,
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss2/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss2/Impacts/impact.png"},
-	# 用户Boss3 - 暗影守卫 (HP 500, 瞄准射击, 5帧动画)
-	{"name":"暗影守卫",   "tint":Color(0.20,0.50,0.30), "hp":500.0, "speed":80.0, "touch":2.5, "exp":30.0,
+	# 用户Boss3 - 暗影守卫 (HP 700, 瞄准射击, 5帧动画)
+	{"name":"暗影守卫",   "tint":Color(0.20,0.50,0.30), "hp":700.0, "speed":80.0, "touch":2.5, "exp":30.0,
 	 "pool":[], "auto_aimed_interval":1.0, "web_interval":5.0, "web_tex":"res://Assets/Sprites/Bosses/Boss3/Bullets/zhuwang_ding.png", "web_px":150.0, "web_damage":0.5, "web_speed":600.0, "web_stun":1.5, "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss3/Bullets/spider_web.png", "bullet_speed":400.0, "path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss3/Body/"},
 	# 用户Boss4 - 深渊领主 (HP 900, 距离环形AI, 4帧翅膀动画)
-		{"name":"深渊领主",   "tint":Color(0.70,0.30,0.20), "hp":600.0, "speed":80.0, "touch":3.5, "exp":38.0,
+		{"name":"深渊领主",   "tint":Color(0.70,0.30,0.20), "hp":900.0, "speed":80.0, "touch":3.5, "exp":38.0,
 	 "ai_mode":"distance_ring", "ring_distance":500.0, "ring_count":36,
 	 "ring_close_interval":1.5, "ring_close_speed":120.0, "ring_close_dmg":0.5,
 	 "ring_far_interval":1.0, "ring_far_speed":180.0, "ring_far_dmg":1.0,
 	 "charge_interval":5.0, "charge_distance":700.0, "pool":["aimed"],
 	 "path":"res://Assets/Sprites/Bosses/Boss4/Body/frame_01.png",
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss4/Body/"},
-		# 用户Boss5 - 虚空霸主 (激光专精)
-		{"name":"虚空霸主",   "tint":Color(0.50,0.20,0.60), "hp":800.0, "speed":100.0, "touch":4.0, "exp":45.0,
+		# 用户Boss5 - 虚空霸主 (HP 1100, 激光专精)
+		{"name":"虚空霸主",   "tint":Color(0.50,0.20,0.60), "hp":1100.0, "speed":100.0, "touch":4.0, "exp":45.0,
 		 "pool":[], "bullet":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanqiu.png", "bullet_px":50.0, "auto_laser_interval":3.0, "ringseq_interval":0.2, "ringseq_damage":1.0, "ringseq_speed":260.0, "sickle_interval":5.0, "sickle_tex":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanliandao.png", "sickle_px":150.0, "sickle_damage":3.0, "sickle_spin":6.283, "sickle_speed":300.0,
 		 "laser_telegraph":0.7, "laser_warning":0.0, "laser_react":0.7,
 		 "laser_length":4500.0, "laser_width":48.0, "laser_damage":5.0, "laser_cooldown":3.0,
@@ -106,6 +106,14 @@ var _waves_cleared: int = 0        # 本局累计清波数（统计用）
 var _run_time: float = 0.0     # 本局已存活时间（秒），用于难度递增
 var _difficulty: float = 1.0   # 难度倍率（敌人 hp/speed 倍率、同屏上限增幅）
 var _last_scene: Node = null   # 用于检测场景重载（玩家死亡重开）以重置状态
+var _crystal_defense_elapsed: float = 0.0  # 水晶防御模式已过去时间
+var _kill_boss_timer: float = 0.0          # kill_boss关卡BOSS计时器
+var _kill_boss_boss_spawned: bool = false  # kill_boss关卡BOSS是否已生成
+var _boss_rush_kills: int = 0              # BOSS连战：已击败BOSS数
+var _boss_rush_total: int = 5              # BOSS连战：总共BOSS数
+var _boss_rush_active: bool = false        # BOSS连战模式激活
+var _boss_rush_timer: float = 0.0          # BOSS连战：小怪阶段计时器
+var _boss_rush_boss_phase: bool = false    # BOSS连战：是否进入BOSS阶段
 
 func _ready() -> void:
 	_create_banner()
@@ -127,6 +135,8 @@ func _ensure_fresh_scene() -> void:
 			_last_boss_index = -1
 			_current_stage_config.clear()
 			_level_stage_repeating = false
+			_boss_rush_timer = 0.0
+			_boss_rush_boss_phase = false
 			var is_level: bool = RunStats != null and RunStats.game_mode == "level"
 			if is_level:
 				level_mode_active = true
@@ -170,12 +180,32 @@ func _physics_process(delta: float) -> void:
 			_banner.visible = false
 
 	if level_mode_active:
+		# kill_boss关卡：5分钟后生成BOSS
+		if _current_stage_config.get("objective_type", "") == "kill_boss" and not _kill_boss_boss_spawned:
+			_kill_boss_timer += delta
+			if _kill_boss_timer >= 300.0:
+				_kill_boss_boss_spawned = true
+				_enter_boss_fight()
+		# BOSS连战：1分钟后进入BOSS阶段
+		if _boss_rush_active and not _boss_rush_boss_phase:
+			_boss_rush_timer += delta
+			if _boss_rush_timer >= 60.0:
+				_boss_rush_boss_phase = true
+				_groups.clear()
+				_spawn_next_boss_rush_boss()
 		match _state:
 			State.FIGHTING:
-				_drip_spawn(delta)
-				if _level_stage_repeating and _count_total() < 30:
+				# kill_boss关卡BOSS已生成后停止刷小兵
+				if _kill_boss_boss_spawned:
+					pass
+				else:
+					_drip_spawn(delta)
+				if _level_stage_repeating and not _current_stage_config.is_empty() and _current_stage_config.get("objective_type", "") == "protect_target":
+					pass  # 水晶防御：由 _update_crystal_defense_difficulty 动态管理，不重置
+				elif _level_stage_repeating and not _kill_boss_boss_spawned and _count_total() < 30:
 					_setup_level_stage_groups(_current_stage_config)
-				if _all_groups_done() and get_tree().get_nodes_in_group("enemy").size() == 0:
+				# BOSS连战：不触发普通清波完成，由BOSS击败计数控制
+				if not _boss_rush_active and _all_groups_done() and get_tree().get_nodes_in_group("enemy").size() == 0:
 					_on_wave_cleared()
 			State.BOSS_FIGHT:
 				if _boss_count() == 0:
@@ -209,16 +239,55 @@ func _physics_process(delta: float) -> void:
 
 func _drip_spawn(delta: float) -> void:
 	var alive := get_tree().get_nodes_in_group("enemy").size()
+	# 水晶防御模式：随时间递增难度
+	if level_mode_active and _level_stage_repeating:
+		_crystal_defense_elapsed += delta
+		_update_crystal_defense_difficulty()
+	# 水晶防御：每组每次可刷多只（慢慢递增）
+	var multi: int = 1
+	if level_mode_active and _level_stage_repeating:
+		multi = min(2, 1 + int(_crystal_defense_elapsed / 60.0))
 	for grp in _groups:
 		if grp["remaining"] <= 0:
 			continue
 		grp["timer"] -= delta
-		# 计时到点且同屏未达上限才刷；上限到时仅冻结计时，空出槽位后自然续刷
 		if grp["timer"] <= 0.0 and alive < _max_alive:
-			_spawn_one(grp["kind"])
-			grp["remaining"] -= 1
+			for _i in multi:
+				if alive >= _max_alive:
+					break
+				_spawn_one(grp["kind"])
+				grp["remaining"] -= 1
+				alive += 1
 			grp["timer"] = grp["interval"]
-			alive += 1
+
+func _update_crystal_defense_difficulty() -> void:
+	var t: float = _crystal_defense_elapsed
+	# 慢慢递增：每30秒一个阶段
+	var phase: int = int(t / 30.0)
+	# 狐狸开局，壮汉30秒，重甲60秒，射手90秒
+	var types: Array[String] = ["fox"]
+	if phase >= 1:
+		types.append("mario")
+	if phase >= 2:
+		types.append("armored")
+	if phase >= 3:
+		types.append("agent")
+	# 检查是否需要添加新的敌人组
+	var existing_kinds: Array = []
+	for grp in _groups:
+		existing_kinds.append(grp["kind"])
+	for kind in types:
+		if not existing_kinds.has(kind):
+			_groups.append({
+				"kind": kind,
+				"remaining": 99999,
+				"interval": max(0.8, 2.0 - phase * 0.15),
+				"timer": 0.0,
+			})
+	# 逐步缩短生成间隔（后期放缓）
+	var base_interval: float = max(0.8, 2.0 - phase * 0.15)
+	for grp in _groups:
+		grp["interval"] = base_interval
 
 func _all_groups_done() -> bool:
 	for grp in _groups:
@@ -263,6 +332,21 @@ func _on_boss_defeated() -> void:
 	_boss_defeat_count += 1
 	emit_signal("special_choice_ready")
 	if level_mode_active:
+		# BOSS连战：击败一只后刷下一只
+		if _boss_rush_active:
+			_boss_rush_kills += 1
+			if _boss_rush_kills >= _boss_rush_total:
+				# 全部击败：通关
+				_calc_boss_rush_level_stars()
+				_state = State.VICTORY
+				stage_spawn_done.emit()
+			else:
+				# 还有BOSS：刷下一只
+				_spawn_next_boss_rush_boss()
+			return
+		# 猎杀行动
+		if _current_stage_config.get("objective_type", "") == "kill_boss":
+			_calc_boss_rush_stars()
 		_state = State.VICTORY
 		stage_spawn_done.emit()
 		return
@@ -389,9 +473,20 @@ func _pick_boss_def() -> Dictionary:
 func _spawn_boss() -> void:
 	var d: Dictionary = _pick_boss_def()
 	var e = BOSS_SCENE.instantiate()
-	e.hp = d["hp"] * _difficulty
+	# 猎杀行动：BOSS血量固定1000（新手关卡调低为 1/16）
+	if _current_stage_config.get("objective_type", "") == "kill_boss":
+		e.hp = 1000.0 / 8.0
+	# BOSS连战：固定血量，不乘难度
+	elif _boss_rush_active:
+		e.hp = d["hp"]
+	elif level_mode_active:
+		e.hp = d["hp"] * _difficulty
+	else:
+		# 无尽模式：直接使用基础血量
+		e.hp = d["hp"] * _difficulty
 	e.touch_damage = d["touch"]
-	e.exp_value = d["exp"]
+	# BOSS连战：经验值×2
+	e.exp_value = d["exp"] * 2.0 if _boss_rush_active else d["exp"]
 	e.def = d
 	e.global_position = _pick_spawn_pos()
 	var scene_root: Node = get_tree().current_scene
@@ -481,6 +576,43 @@ func get_wave_label() -> String:
 func get_difficulty() -> float:
 	return _difficulty
 
+# 猎杀行动：根据玩家血量计算星级
+func _calc_boss_rush_stars() -> void:
+	if RunStats == null:
+		return
+	var p = get_tree().get_first_node_in_group("player")
+	if p != null and p.has_method("get_hp") and p.has_method("get_max_hp"):
+		var hp: float = p.get_hp()
+		var max_hp: float = p.get_max_hp()
+		var ratio: float = hp / max_hp if max_hp > 0.0 else 0.0
+		if ratio > 0.8:
+			RunStats.crystal_hp_ratio = 1.0   # 3星
+		elif ratio > 0.6:
+			RunStats.crystal_hp_ratio = 0.6   # 2星
+		elif ratio > 0.4:
+			RunStats.crystal_hp_ratio = 0.4   # 1星
+		else:
+			RunStats.crystal_hp_ratio = 0.0   # 0星
+
+# BOSS连战：刷下一只BOSS
+func _spawn_next_boss_rush_boss() -> void:
+	_state = State.BOSS_FIGHT
+	_spawn_boss()
+	_show_banner("第 %d / 5 只 BOSS" % (_boss_rush_kills + 1), 2.0)
+
+# BOSS连战：根据击败数计算星级
+func _calc_boss_rush_level_stars() -> void:
+	if RunStats == null:
+		return
+	if _boss_rush_kills >= 5:
+		RunStats.crystal_hp_ratio = 1.0   # 3星
+	elif _boss_rush_kills >= 3:
+		RunStats.crystal_hp_ratio = 0.6   # 2星
+	elif _boss_rush_kills >= 1:
+		RunStats.crystal_hp_ratio = 0.4   # 1星
+	else:
+		RunStats.crystal_hp_ratio = 0.0   # 0星
+
 # ===== 关卡模式接口 =====
 
 func set_level_mode(enabled: bool) -> void:
@@ -488,12 +620,29 @@ func set_level_mode(enabled: bool) -> void:
 	if not enabled:
 		_current_stage_config.clear()
 		_level_stage_repeating = false
+		_boss_rush_active = false
+		if RunStats != null and RunStats.has_signal("boss_defeated"):
+			if RunStats.boss_defeated.is_connected(_on_boss_defeated):
+				RunStats.boss_defeated.disconnect(_on_boss_defeated)
 
 func start_level_stage(stage: Dictionary) -> void:
 	level_mode_active = true
 	_current_stage_config = stage.duplicate(true)
 	_state = State.FIGHTING
 	_groups.clear()
+	_crystal_defense_elapsed = 0.0
+	_kill_boss_timer = 0.0
+	_kill_boss_boss_spawned = false
+	_boss_rush_kills = 0
+	_boss_rush_total = 5
+	_boss_rush_active = stage.get("objective_type", "") == "boss_rush"
+	_boss_rush_timer = 0.0
+	_boss_rush_boss_phase = false
+	# 防止 _ensure_fresh_scene 在下一帧重置状态
+	_last_scene = get_tree().current_scene
+	# 水晶防御模式：提高同屏上限
+	if stage.get("objective_type", "") == "protect_target":
+		_max_alive = 100
 
 	var enemy_types: Array = stage.get("enemy_types", [])
 	var enemy_count: int = stage.get("enemy_count", 0) as int
@@ -501,6 +650,24 @@ func start_level_stage(stage: Dictionary) -> void:
 	var stage_difficulty: float = float(stage.get("difficulty_multiplier", 1.0))
 
 	_level_stage_repeating = enemy_count == 0
+
+	# BOSS连战：先刷1分钟小怪
+	if _boss_rush_active:
+		if RunStats != null and RunStats.has_signal("boss_defeated"):
+			if RunStats.boss_defeated.is_connected(_on_boss_defeated):
+				RunStats.boss_defeated.disconnect(_on_boss_defeated)
+			RunStats.boss_defeated.connect(_on_boss_defeated)
+		# 设置小怪组（fox海）
+		_groups.clear()
+		_groups.append({
+			"kind": "fox",
+			"remaining": 99999,
+			"interval": 0.3,
+			"timer": 0.0,
+		})
+		_level_stage_repeating = true
+		_show_banner("BOSS连战 - 准备迎战！", 2.0)
+		return
 
 	if enemy_types.is_empty() and enemy_count == 0:
 		# BOSS 关：直接刷 BOSS

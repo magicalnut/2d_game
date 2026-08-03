@@ -34,6 +34,8 @@ var deploy_difficulty: int = 0   # 出战整备页选的难度：0=普通 1=困�
 var game_mode: String = ""       # 游戏模式：""=未选择 "level"=关卡模式 "endless"=无尽模式
 var selected_level_id: String = ""
 var level_mode_result: String = ""
+var level_category: String = ""  # 关卡类别："novice" 或 "official"
+var crystal_hp_ratio: float = -1.0  # 水晶剩余血量比例（-1=无水晶关卡）
 
 # ===== 装备系统 =====
 var equipped_gear: Dictionary = {}    # 本局携带的装备实例 {slot_id: gear_instance}
@@ -72,6 +74,7 @@ func _process(delta: float) -> void:
 func _reset() -> void:
 	time_survived = 0.0
 	kills = 0
+	crystal_hp_ratio = -1.0
 	# boss_ref 不由 _reset 清空：防止 _process(_reset) 覆盖 boss._ready() 已设的引用
 	# boss_ref 在离开 Main 时由 _process() else 分支清空，或在 boss._die() 中清空
 
@@ -90,13 +93,17 @@ func get_character_def() -> Dictionary:
 
 # ===== 关卡进度 API =====
 
-const LEVEL_ORDER: Array[String] = ["level_01", "level_02", "level_03"]
+const LEVEL_ORDER: Array[String] = ["level_01", "level_02", "level_03", "level_04", "level_05", "level_06"]
 const LEVEL_PROGRESS_PATH := "user://level_progress.json"
 var completed_levels: Array[String] = []
 var unlocked_levels: Array[String] = ["level_01"]
+var level_stars: Dictionary = {}  # {level_id: star_count} 星级记录
 
 func is_level_completed(level_id: String) -> bool:
 	return completed_levels.has(level_id)
+
+func get_level_stars(level_id: String) -> int:
+	return level_stars.get(level_id, 0)
 
 func is_level_unlocked(level_id: String) -> bool:
 	if unlocked_levels.has(level_id):
@@ -111,6 +118,19 @@ func is_level_unlocked(level_id: String) -> bool:
 func complete_level(level_id: String) -> void:
 	if not completed_levels.has(level_id):
 		completed_levels.append(level_id)
+	# 保存星级
+	if crystal_hp_ratio >= 0.0:
+		var star_count: int = 0
+		if crystal_hp_ratio > 0.6:
+			star_count = 3
+		elif crystal_hp_ratio > 0.4:
+			star_count = 2
+		elif crystal_hp_ratio > 0.2:
+			star_count = 1
+		# 只保存更高星级
+		var old: int = level_stars.get(level_id, 0)
+		if star_count > old:
+			level_stars[level_id] = star_count
 	for id in LEVEL_ORDER:
 		var data: LevelData = load("res://Assets/Resources/Levels/" + id + ".tres") as LevelData
 		if data == null:
@@ -132,11 +152,13 @@ func _load_level_progress() -> void:
 	var data: Dictionary = json.get_data() as Dictionary
 	completed_levels.assign(data.get("completed_levels", []))
 	unlocked_levels.assign(data.get("unlocked_levels", ["level_01"]))
+	level_stars = data.get("level_stars", {})
 
 func _save_level_progress() -> void:
 	var data := {
 		"completed_levels": completed_levels,
 		"unlocked_levels": unlocked_levels,
+		"level_stars": level_stars,
 	}
 	var file := FileAccess.open(LEVEL_PROGRESS_PATH, FileAccess.WRITE)
 	if file == null:

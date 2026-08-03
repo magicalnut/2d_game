@@ -382,6 +382,7 @@ func _spawn_book_star(dir: Vector2, dmg: float, st: int) -> void:
 	p.homing_range = 450.0
 	p.homing_start_dist = BOOK_HOMING_START   # 先直线飞出一段再追踪，避免一出生就径直奔敌
 	p.pierce = 2 + st            # 穿透：星形子弹可贯穿多个敌人，每个敌人仅结算一次伤害
+	p.hit_radius = 384.0 * p.tex_scale * 0.32   # 命中判定半径随视觉同步放大（与手枪同公式）
 	var world: Node = _player.get_parent()
 	if world == null:
 		return

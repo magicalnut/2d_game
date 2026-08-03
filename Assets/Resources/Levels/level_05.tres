@@ -1,0 +1,29 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Assets/Scripts/level_data.gd" id="1_level_data"]
+
+[resource]
+script = ExtResource("1_level_data")
+level_id = "level_05"
+display_name = "猎杀行动"
+description = "消灭源源不断的狼群，最后迎战随机BOSS。击败BOSS或阵亡即结束。根据剩余血量获得评级。"
+unlock_requirement = "level_04"
+time_limit = 0.0
+difficulty_multiplier = 1.0
+stages = [{
+"stage_id": "stage_1",
+"name": "猎杀行动",
+"objective_type": "kill_boss",
+"target_value": 1.0,
+"enemy_types": ["fox"],
+"enemy_count": 0,
+"spawn_interval": 0.26,
+"difficulty_multiplier": 1.0,
+"rewards": {
+"exp": 0
+}
+}]
+rewards = {
+"diamonds": 0,
+"first_clear_gear": ""
+}

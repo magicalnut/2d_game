@@ -1,0 +1,29 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Assets/Scripts/level_data.gd" id="1_level_data"]
+
+[resource]
+script = ExtResource("1_level_data")
+level_id = "level_04"
+display_name = "水晶守卫"
+description = "保护地图中心的水晶不被敌人摧毁。敌人会持续攻击水晶，坚持3分钟即可获胜。"
+unlock_requirement = "level_03"
+time_limit = 180.0
+difficulty_multiplier = 1.0
+stages = [{
+"stage_id": "stage_1",
+"name": "水晶防御",
+"objective_type": "protect_target",
+"target_value": 180.0,
+"enemy_types": ["fox"],
+"enemy_count": 0,
+"spawn_interval": 2.5,
+"difficulty_multiplier": 1.0,
+"rewards": {
+"exp": 80
+}
+}]
+rewards = {
+"diamonds": 80,
+"first_clear_gear": "rune_of_protection"
+}

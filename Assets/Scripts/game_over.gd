@@ -9,6 +9,7 @@ const MENU_SCENE := "res://Scenes/menu.tscn"
 var _overlay: Control
 var _stats_label: Label
 var _title: Label
+var _level_complete: bool = false
 
 func _ready() -> void:
 	layer = 30
@@ -71,6 +72,9 @@ func _build() -> void:
 	hbox.add_child(_make_button("返回主菜单", _on_menu, Color(0.20, 0.18, 0.30)))
 
 func show_game_over() -> void:
+	if _level_complete:
+		_show_level_complete_stars()
+		return
 	var p = get_tree().get_first_node_in_group("player")
 	var lvl: int = 1
 	if p != null and p.has_method("get_level"):
@@ -139,6 +143,9 @@ func show_level_complete(level_data: LevelData) -> void:
 		kills = RunStats.kills
 
 	_stats_label.text = "关卡  %s\n存活时间  %s\n击杀敌人  %d\n%s" % [level_data.display_name, tstr, kills, reward_text]
+	if RunStats != null and RunStats.crystal_hp_ratio >= 0.0:
+		var stars: String = _calc_stars(RunStats.crystal_hp_ratio)
+		_stats_label.text += "评级  %s\n" % stars
 	_overlay.visible = true
 	get_tree().paused = true
 
@@ -160,6 +167,9 @@ func show_level_failed(reason: String) -> void:
 		kills = RunStats.kills
 
 	_stats_label.text = "关卡失败  %s\n存活时间  %s\n击杀敌人  %d" % [reason_text, tstr, kills]
+	if RunStats != null and RunStats.crystal_hp_ratio >= 0.0:
+		var stars: String = _calc_stars(RunStats.crystal_hp_ratio)
+		_stats_label.text += "\n评级  %s" % stars
 	_overlay.visible = true
 	get_tree().paused = true
 
@@ -185,6 +195,37 @@ func _spacer(h: float) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(0.0, h)
 	return c
+
+func _calc_stars(ratio: float) -> String:
+	if ratio > 0.6:
+		return "★★★"
+	elif ratio > 0.4:
+		return "★★☆"
+	elif ratio > 0.2:
+		return "★☆☆"
+	return "☆☆☆"
+
+func set_level_complete(complete: bool) -> void:
+	_level_complete = complete
+
+func _show_level_complete_stars() -> void:
+	_level_complete = false
+	_title.text = "关卡完成"
+	_title.add_theme_color_override("font_color", Color(0.45, 1.0, 0.55))
+
+	var tstr: String = "00:00"
+	var kills: int = 0
+	if RunStats != null:
+		tstr = RunStats.get_time_string()
+		kills = RunStats.kills
+
+	var stars: String = "☆☆☆"
+	if RunStats != null and RunStats.crystal_hp_ratio >= 0.0:
+		stars = _calc_stars(RunStats.crystal_hp_ratio)
+
+	_stats_label.text = "存活时间  %s\n击杀敌人  %d\n水晶评级  %s" % [tstr, kills, stars]
+	_overlay.visible = true
+	get_tree().paused = true
 
 func _make_button(text: String, cb: Callable, accent: Color) -> Button:
 	var b := Button.new()

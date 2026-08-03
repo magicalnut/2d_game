@@ -4,16 +4,16 @@ extends Node2D
 ## 暗影守卫→深渊领主→虚空霸主→老赛→德牧蓝
 
 const BOSS_DEFS := [
-	{"name":"暗影守卫","hp":500.0,"speed":120.0,"touch":2.5,"exp":30.0,
+	{"name":"暗影守卫","hp":467.0,"speed":120.0,"touch":2.5,"exp":30.0,
 	 "pool":["aimed"],"path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
 	 "tint":Color(0.20,0.50,0.30),"animated":true,
 	 "frames_dir":"res://Assets/Sprites/Bosses/Boss3/Body/"},
-	{"name":"深渊领主","hp":700.0,"speed":140.0,"touch":3.5,"exp":38.0,
+	{"name":"深渊领主","hp":600.0,"speed":140.0,"touch":3.5,"exp":38.0,
 	 "pool1":["aimed","ring"],"pool2":["aimed","ring","charge"],
 	 "path":"res://Assets/Sprites/Bosses/Boss4/Body/frame_01.png",
 	 "tint":Color(0.70,0.30,0.20),"animated":true,
 	 "frames_dir":"res://Assets/Sprites/Bosses/Boss4/Body/"},
-	{"name":"虚空霸主","hp":900.0,"speed":110.0,"touch":4.0,"exp":45.0,
+	{"name":"虚空霸主","hp":733.0,"speed":110.0,"touch":4.0,"exp":45.0,
 	 "pool":["ring","spiral","nova","laser"],"path":"res://Assets/Sprites/Bosses/Boss5/Body/frame_01.png",
 	 "tint":Color(0.50,0.20,0.60),"animated":true,
 	 "frames_dir":"res://Assets/Sprites/Bosses/Boss5/Body/"},
@@ -21,7 +21,7 @@ const BOSS_DEFS := [
 	 "pool1":["melee"],"pool2":["melee","charge"],
 	 "path":"res://Assets/Sprites/Bosses/Boss1/Body/body.png",
 	 "tint":Color(0.90,0.22,0.20)},
-	{"name":"德牧蓝","hp":1500.0,"speed":116.0,"touch":4.0,"exp":45.0,
+	{"name":"德牧蓝","hp":1200.0,"speed":116.0,"touch":4.0,"exp":45.0,
 	 "pool1":["aimed"],"pool2":["burst","aimed"],
 	 "path":"res://Assets/Sprites/Bosses/Boss2/Body/body.png",
 	 "tint":Color(0.30,0.55,0.95)},
@@ -49,11 +49,8 @@ const LEVEL_WAVES := {
 		{"kind":"fox", "count":10, "interval":0.6},
 		{"kind":"agent", "count":4, "interval":1.8},
 	],
-	4: [  # 德牧蓝：全部类型
-		{"kind":"fox", "count":15, "interval":0.5},
-		{"kind":"agent", "count":8, "interval":1.0},
-		{"kind":"mario", "count":4, "interval":1.8},
-		{"kind":"armored", "count":3, "interval":2.5},
+	4: [  # 猎杀行动：无尽模式第一层的fox海
+		{"kind":"fox", "count":42, "interval":0.26, "burst":12},
 	],
 }
 
@@ -69,6 +66,7 @@ var _hud: Node = null
 var _pause_overlay: CanvasLayer = null
 var _wave_groups: Array = []       # 当前关的小怪生成组
 var _wave_done: bool = false       # 所有组刷完
+var _boss_timer: float = 0.0       # 猎杀行动BOSS计时器
 
 func _ready() -> void:
 	# 重置局内状态
@@ -208,15 +206,30 @@ func _create_pause_overlay() -> void:
 func _process(delta: float) -> void:
 	if _banner_timer > 0.0: _banner_timer -= delta
 	if _banner_timer <= 0.0 and _banner != null: _banner.visible = false
+	# 猎杀行动：5分钟BOSS计时器（始终运行）
+	if _level == 4 and not _boss_spawned and _state == "fighting":
+		_boss_timer += delta
+		if _boss_timer >= 300.0:
+			_spawn_boss(); _state = "boss"
 	match _state:
 		"fighting":
-			_drip_spawn(delta)
+			# 猎杀行动BOSS已生成后停止刷小兵
+			if _level == 4 and _boss_spawned:
+				pass
+			else:
+				_drip_spawn(delta)
 			if _wave_done and get_tree().get_nodes_in_group("enemy").size() == 0 and not _boss_spawned:
 				_spawn_boss(); _state = "boss"
 		"boss":
 			if not is_instance_valid(_active_boss):
 				if RunStats != null:
 					RunStats.boss_ref = null
+				if _level == 4:
+					_calc_level_stars()
+					if _game_over_ui != null and _game_over_ui.has_method("set_level_complete"):
+						_game_over_ui.set_level_complete(true)
+					_show_victory()
+					return
 				_boss_spawned = false; _state = "intermission"; _inter_timer = 3.0
 		"intermission":
 			_inter_timer -= delta
@@ -226,13 +239,14 @@ func _drip_spawn(delta: float) -> void:
 	if _wave_done:
 		return
 	var alive := get_tree().get_nodes_in_group("enemy").size()
+	var max_alive: int = 60 if _level != 4 else 55
 	var all_done := true
 	for grp in _wave_groups:
 		if grp["remaining"] <= 0:
 			continue
 		all_done = false
 		grp["timer"] -= delta
-		if grp["timer"] <= 0.0 and alive < 60:
+		if grp["timer"] <= 0.0 and alive < max_alive:
 			_spawn_level_enemy(grp["kind"])
 			grp["remaining"] -= 1
 			grp["timer"] = grp["interval"]
@@ -273,6 +287,7 @@ func _next_level() -> void:
 		RunStats.last_wave_reached = _level
 	if _level >= BOSS_DEFS.size(): _show_victory(); return
 	_boss_spawned = false
+	_boss_timer = 0.0
 	# 初始化小怪波次
 	_wave_groups = []
 	_wave_done = false
@@ -283,9 +298,23 @@ func _next_level() -> void:
 			"remaining": cfg["count"],
 			"interval": cfg["interval"],
 			"timer": 0.5,
+			"burst": cfg.get("burst", 0),
 		})
-	_show_banner("第 %d 关 - %s" % [_level+1, BOSS_DEFS[_level]["name"]], 2.5)
+	# 开局先砸一批(burst)，制造即时压迫感
+	for grp in _wave_groups:
+		var b: int = grp["burst"]
+		for _i in b:
+			if grp["remaining"] <= 0:
+				break
+			_spawn_level_enemy(grp["kind"])
+			grp["remaining"] -= 1
+	_show_banner("第 %d 关 - %s" % [_level+1, _get_level_name()], 2.5)
 	_state = "fighting"
+
+func _get_level_name() -> String:
+	if _level == 4:
+		return "猎杀行动"
+	return BOSS_DEFS[_level]["name"]
 
 func _pick_spawn_pos() -> Vector2:
 	var view := get_viewport_rect()
@@ -300,14 +329,20 @@ func _pick_spawn_pos() -> Vector2:
 func _spawn_boss() -> void:
 	if _boss_spawned: return
 	_boss_spawned = true
-	var d = BOSS_DEFS[_level]
+	var d: Dictionary
+	if _level == 4:
+		# 猎杀行动：随机BOSS，血量700
+		var idx: int = randi() % BOSS_DEFS.size()
+		d = BOSS_DEFS[idx].duplicate()
+		d["hp"] = 700.0
+	else:
+		d = BOSS_DEFS[_level]
 	var bs = load("res://Assets/Sprites/Bosses/boss.tscn")
 	if bs == null: return
 	var b = bs.instantiate()
-	b.hp = d["hp"]; b.touch_damage = d["touch"]; b.exp_value = d["exp"]; b.def = d
+	b.hp = d["hp"] * 2.0 / 3.0; b.touch_damage = d["touch"]; b.exp_value = d["exp"]; b.def = d
 	b.global_position = Vector2(2560, 1440)
 	add_child(b); _active_boss = b
-	# 注册到 RunStats 供 HUD 读取血条
 	if RunStats != null:
 		RunStats.boss_ref = b
 	_show_banner("⚠ %s 降临 ⚠" % d["name"], 2.0)
@@ -320,8 +355,28 @@ func _show_victory() -> void:
 		_game_over_ui.show_game_over()
 
 func _on_player_died() -> void:
+	if _level == 4:
+		# 猎杀行动：阵亡也结算星级
+		_calc_level_stars()
 	if _game_over_ui != null and _game_over_ui.has_method("show_game_over"):
 		_game_over_ui.show_game_over()
+
+func _calc_level_stars() -> void:
+	if RunStats == null:
+		return
+	var p = get_tree().get_first_node_in_group("player")
+	if p != null and p.has_method("get_hp") and p.has_method("get_max_hp"):
+		var hp: float = p.get_hp()
+		var max_hp: float = p.get_max_hp()
+		var ratio: float = hp / max_hp if max_hp > 0.0 else 0.0
+		if ratio > 0.8:
+			RunStats.crystal_hp_ratio = 1.0   # 3星
+		elif ratio > 0.6:
+			RunStats.crystal_hp_ratio = 0.6   # 2星
+		elif ratio > 0.4:
+			RunStats.crystal_hp_ratio = 0.4   # 1星
+		else:
+			RunStats.crystal_hp_ratio = 0.0   # 0星
 
 func _create_banner() -> void:
 	var l = CanvasLayer.new(); l.layer = 20; l.process_mode = Node.PROCESS_MODE_ALWAYS; add_child(l)

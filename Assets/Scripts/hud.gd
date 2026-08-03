@@ -27,6 +27,10 @@ var _gear_slots: Array[Control] = []   # 底部6装备槽微型图标
 var _gear_slot_root: Control = null
 var _gear_slot_size: float = 28.0
 var _gear_slot_gap: float = 6.0
+
+var _crystal_panel: PanelContainer = null
+var _crystal_hp_label: Label = null
+var _crystal_star_label: Label = null
 const _GEAR_ICON_DIR := "res://Assets/Sprites/UI/Gear/"      # 单件装备图标（按 def_id 命名，如 rune_of_fire.png）
 const _SLOT_ICON_DIR := "res://Assets/Sprites/UI/Slots/"     # 槽位图标与 lock.png
 
@@ -131,6 +135,48 @@ func _build_ui() -> void:
 	var bbg := StyleBoxFlat.new()
 	bbg.bg_color = Color(0.08, 0.08, 0.1, 0.9)
 	_boss_bar.add_theme_stylebox_override("background", bbg)
+
+	# ——— 左上角水晶血量+星级面板（默认隐藏，水晶关卡时显示）———
+	_crystal_panel = PanelContainer.new()
+	root.add_child(_crystal_panel)
+	_crystal_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_crystal_panel.offset_left = 12.0
+	_crystal_panel.offset_top = 8.0
+	_crystal_panel.offset_right = 200.0
+	_crystal_panel.offset_bottom = 60.0
+	_crystal_panel.visible = false
+	_crystal_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var cp_sb := StyleBoxFlat.new()
+	cp_sb.bg_color = Color(0.05, 0.08, 0.14, 0.80)
+	cp_sb.border_color = Color(0.4, 0.6, 0.9, 0.6)
+	cp_sb.set_border_width_all(1)
+	cp_sb.set_corner_radius_all(8)
+	_crystal_panel.add_theme_stylebox_override("panel", cp_sb)
+
+	var cp_vbox := VBoxContainer.new()
+	cp_vbox.add_theme_constant_override("separation", 2)
+	cp_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crystal_panel.add_child(cp_vbox)
+
+	_crystal_hp_label = Label.new()
+	_crystal_hp_label.text = "水晶 100%"
+	_crystal_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_crystal_hp_label.add_theme_font_size_override("font_size", 14)
+	_crystal_hp_label.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
+	_crystal_hp_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	_crystal_hp_label.add_theme_constant_override("outline_size", 2)
+	_crystal_hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cp_vbox.add_child(_crystal_hp_label)
+
+	_crystal_star_label = Label.new()
+	_crystal_star_label.text = "★ ★ ★"
+	_crystal_star_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_crystal_star_label.add_theme_font_size_override("font_size", 28)
+	_crystal_star_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	_crystal_star_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	_crystal_star_label.add_theme_constant_override("outline_size", 2)
+	_crystal_star_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cp_vbox.add_child(_crystal_star_label)
 
 	# ——— 左下角状态面板：血量条 / 经验条 横向并排 ———
 	# 设计（1152x648 基准）：圆角半透明底板，距左 30 / 距底 30；
@@ -335,6 +381,8 @@ func _process(_delta: float) -> void:
 		_wave_label.text = WaveManager.get_wave_label()
 	# 刷新装备槽图标
 	_refresh_gear_slots()
+	# 水晶血量+星级
+	_update_crystal_panel()
 
 func _build_gear_slots() -> void:
 	## 在左下角状态面板上方构建6个微型装备槽图标
@@ -465,3 +513,80 @@ func _refresh_gear_slots() -> void:
 					lb.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.6))
 					lb.visible = true
 		slot.add_theme_stylebox_override("panel", sb)
+
+func _update_crystal_panel() -> void:
+	var is_level_05: bool = RunStats != null and RunStats.game_mode == "level" and RunStats.selected_level_id == "level_05"
+	var is_level_06: bool = RunStats != null and RunStats.game_mode == "level" and RunStats.selected_level_id == "level_06"
+	if is_level_05:
+		# 猎杀行动：显示玩家血量百分比+星级
+		if _player == null or not is_instance_valid(_player) or not _player.has_method("get_hp") or not _player.has_method("get_max_hp"):
+			_crystal_panel.visible = false
+			return
+		_crystal_panel.visible = true
+		var hp: float = _player.get_hp()
+		var max_hp: float = _player.get_max_hp()
+		var ratio: float = hp / max_hp if max_hp > 0.0 else 0.0
+		var pct: int = int(ratio * 100)
+		_crystal_hp_label.text = "血量 %d%%" % pct
+		if ratio > 0.8:
+			_crystal_star_label.text = "★★★"
+			_crystal_star_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		elif ratio > 0.6:
+			_crystal_star_label.text = "★★☆"
+			_crystal_star_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		elif ratio > 0.4:
+			_crystal_star_label.text = "★☆☆"
+			_crystal_star_label.add_theme_color_override("font_color", Color(0.9, 0.75, 0.3))
+		else:
+			_crystal_star_label.text = "☆☆☆"
+			_crystal_star_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		return
+	if is_level_06:
+		# BOSS连战：显示当前阶段+星级
+		var wm = get_node_or_null("/root/WaveManager")
+		var kills: int = 0
+		var in_boss_phase: bool = false
+		if wm != null:
+			if wm.get("_boss_rush_kills") != null:
+				kills = wm.get("_boss_rush_kills")
+			if wm.get("_boss_rush_boss_phase") != null:
+				in_boss_phase = wm.get("_boss_rush_boss_phase")
+		_crystal_panel.visible = true
+		if in_boss_phase:
+			_crystal_hp_label.text = "击败 %d / 5 BOSS" % kills
+		else:
+			_crystal_hp_label.text = "小怪阶段 - 准备迎战"
+		if kills >= 5:
+			_crystal_star_label.text = "★★★"
+			_crystal_star_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		elif kills >= 3:
+			_crystal_star_label.text = "★★☆"
+			_crystal_star_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		elif kills >= 1:
+			_crystal_star_label.text = "★☆☆"
+			_crystal_star_label.add_theme_color_override("font_color", Color(0.9, 0.75, 0.3))
+		else:
+			_crystal_star_label.text = "☆☆☆"
+			_crystal_star_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		return
+	# 水晶防御模式
+	var crystal: Node2D = get_tree().get_first_node_in_group("crystal") as Node2D
+	if crystal == null or not is_instance_valid(crystal) or crystal.is_destroyed():
+		_crystal_panel.visible = false
+		return
+	_crystal_panel.visible = true
+	var ratio: float = crystal.get_hp_ratio()
+	var pct: int = int(ratio * 100)
+	_crystal_hp_label.text = "水晶 %d%%" % pct
+	if ratio > 0.6:
+		_crystal_star_label.text = "★★★"
+		_crystal_star_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	elif ratio > 0.4:
+		_crystal_star_label.text = "★★☆"
+		_crystal_star_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	elif ratio > 0.2:
+		_crystal_star_label.text = "★☆☆"
+		_crystal_star_label.add_theme_color_override("font_color", Color(0.9, 0.75, 0.3))
+	else:
+		_crystal_star_label.text = "☆☆☆"
+		_crystal_star_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))

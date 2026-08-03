@@ -20,6 +20,8 @@ var _objective_node: LevelObjective = null
 var _player: Node2D = null
 var _is_level_running: bool = false
 var _stage_delay_timer: Timer = null
+var _crystal: Node2D = null
+var _crystal_max_hp: float = 200.0
 
 func _ready() -> void:
 	add_to_group("level_manager")
@@ -37,18 +39,49 @@ func _ready() -> void:
 		_player.died.connect(_on_player_died)
 	if _wave_manager != null and _wave_manager.has_method("set_level_mode"):
 		_wave_manager.set_level_mode(true)
+	if _wave_manager != null and _wave_manager.has_signal("stage_spawn_done"):
+		if _wave_manager.stage_spawn_done.is_connected(_on_wave_stage_done):
+			_wave_manager.stage_spawn_done.disconnect(_on_wave_stage_done)
+		_wave_manager.stage_spawn_done.connect(_on_wave_stage_done)
 	_start_level()
+
+func _spawn_crystal() -> void:
+	var crystal_scene = preload("res://Scenes/crystal.tscn")
+	_crystal = crystal_scene.instantiate()
+	_crystal.global_position = Vector2(2560, 1440)
+	_crystal.max_hp = _crystal_max_hp
+	_crystal.crystal_destroyed.connect(_on_crystal_destroyed)
+	_crystal.crystal_damaged.connect(_on_crystal_damaged)
+	add_child(_crystal)
+
+func _on_crystal_destroyed() -> void:
+	_fail_level("crystal_destroyed")
+
+func _on_crystal_damaged(current_hp: float, max_hp: float) -> void:
+	if _objective_node != null and _objective_node.objective_type == LevelObjective.Type.DEFEND_TARGET:
+		var hp_ratio: float = current_hp / max_hp if max_hp > 0.0 else 0.0
+		if RunStats != null:
+			RunStats.crystal_hp_ratio = hp_ratio
+		if hp_ratio <= 0.0:
+			_objective_node.mark_failed()
 
 func _process(delta: float) -> void:
 	if not _is_level_running:
 		return
 	_level_runtime += delta
+	# 时间限制仅对非防守/存活目标生效（防守/存活类由目标自身判定完成）
 	if level_data.time_limit > 0.0 and _level_runtime >= level_data.time_limit:
-		_fail_level("time_limit")
-		return
+		var is_defend_or_survive: bool = _objective_node != null and (
+			_objective_node.objective_type == LevelObjective.Type.DEFEND_TARGET or
+			_objective_node.objective_type == LevelObjective.Type.SURVIVE_TIME)
+		if not is_defend_or_survive:
+			_fail_level("time_limit")
+			return
 	if _stage_state == StageState.RUNNING:
 		_stage_runtime += delta
 		if _objective_node != null and _objective_node.objective_type == LevelObjective.Type.SURVIVE_TIME:
+			_objective_node.set_progress(_stage_runtime)
+		elif _objective_node != null and _objective_node.objective_type == LevelObjective.Type.DEFEND_TARGET:
 			_objective_node.set_progress(_stage_runtime)
 
 func get_level_id() -> String:
@@ -110,6 +143,13 @@ func _stage_setup_objective(stage: Dictionary) -> void:
 		"kill_boss":
 			_objective_node.objective_type = LevelObjective.Type.KILL_BOSS
 			_objective_node.target_value = 1.0
+		"protect_target":
+			_objective_node.objective_type = LevelObjective.Type.DEFEND_TARGET
+			_objective_node.target_value = target
+			_spawn_crystal()
+		"boss_rush":
+			_objective_node.objective_type = LevelObjective.Type.KILL_BOSS
+			_objective_node.target_value = 5.0
 		_:
 			_objective_node.objective_type = LevelObjective.Type.KILL_COUNT
 			_objective_node.target_value = target
@@ -120,7 +160,8 @@ func _stage_setup_objective(stage: Dictionary) -> void:
 	if RunStats != null and RunStats.has_signal("kill_added"):
 		if RunStats.kill_added.is_connected(_on_kill_added):
 			RunStats.kill_added.disconnect(_on_kill_added)
-		if _objective_node.objective_type == LevelObjective.Type.KILL_COUNT or _objective_node.objective_type == LevelObjective.Type.KILL_BOSS:
+		# boss_rush不连接击杀信号，由wave_manager控制BOSS击败计数
+		if obj_type != "boss_rush" and (_objective_node.objective_type == LevelObjective.Type.KILL_COUNT or _objective_node.objective_type == LevelObjective.Type.KILL_BOSS):
 			RunStats.kill_added.connect(_on_kill_added)
 	if RunStats != null and RunStats.has_signal("boss_defeated"):
 		if RunStats.boss_defeated.is_connected(_on_boss_defeated):
@@ -147,6 +188,18 @@ func _on_stage_objective_completed() -> void:
 	if _stage_delay_timer != null:
 		_stage_delay_timer.start()
 
+# wave_manager发出的stage_spawn_done信号（猎杀行动BOSS被击败）
+func _on_wave_stage_done() -> void:
+	if _stage_state != StageState.RUNNING:
+		return
+	_stage_state = StageState.COMPLETED
+	stage_completed.emit(_current_stage_index)
+	if _current_stage_index + 1 >= level_data.get_stage_count():
+		_complete_level()
+	else:
+		if _stage_delay_timer != null:
+			_stage_delay_timer.start()
+
 func _on_stage_objective_failed() -> void:
 	_fail_level("objective_failed")
 
@@ -155,6 +208,8 @@ func _on_player_died() -> void:
 
 func _complete_level() -> void:
 	_is_level_running = false
+	if _crystal != null and not _crystal.is_destroyed() and RunStats != null:
+		RunStats.crystal_hp_ratio = _crystal.get_hp_ratio()
 	if _stage_delay_timer != null:
 		_stage_delay_timer.stop()
 	if _wave_manager != null and _wave_manager.has_method("set_level_mode"):
@@ -163,6 +218,24 @@ func _complete_level() -> void:
 
 func _fail_level(reason: String) -> void:
 	_is_level_running = false
+	if level_data != null and RunStats != null:
+		if level_data.level_id == "level_05":
+			RunStats.crystal_hp_ratio = 0.0
+			RunStats.complete_level(level_data.level_id)
+		elif level_data.level_id == "level_06":
+			# BOSS连战：根据已击败BOSS数保存星级
+			var kills: int = 0
+			if _wave_manager != null:
+				kills = _wave_manager.get("_boss_rush_kills") if _wave_manager.get("_boss_rush_kills") != null else 0
+			if kills >= 5:
+				RunStats.crystal_hp_ratio = 1.0
+			elif kills >= 3:
+				RunStats.crystal_hp_ratio = 0.6
+			elif kills >= 1:
+				RunStats.crystal_hp_ratio = 0.4
+			else:
+				RunStats.crystal_hp_ratio = 0.0
+			RunStats.complete_level(level_data.level_id)
 	if _stage_delay_timer != null:
 		_stage_delay_timer.stop()
 	if _wave_manager != null and _wave_manager.has_method("set_level_mode"):
@@ -179,6 +252,9 @@ func _exit_tree() -> void:
 	if _player != null and _player.has_signal("died"):
 		if _player.died.is_connected(_on_player_died):
 			_player.died.disconnect(_on_player_died)
+	if _wave_manager != null and _wave_manager.has_signal("stage_spawn_done"):
+		if _wave_manager.stage_spawn_done.is_connected(_on_wave_stage_done):
+			_wave_manager.stage_spawn_done.disconnect(_on_wave_stage_done)
 	if _objective_node != null:
 		if _objective_node.objective_completed.is_connected(_on_stage_objective_completed):
 			_objective_node.objective_completed.disconnect(_on_stage_objective_completed)

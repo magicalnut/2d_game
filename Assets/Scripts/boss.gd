@@ -1071,3 +1071,8 @@ func _drop_loot() -> void:
 	orb.global_position = global_position
 	orb.exp_value = exp_value
 	get_parent().add_child(orb)
+	# BOSS连战：必定掉血瓶
+	if RunStats != null and RunStats.game_mode == "level" and RunStats.selected_level_id == "level_06":
+		var hb = preload("res://Assets/Sprites/Pickups/health_bottle.tscn").instantiate()
+		hb.global_position = global_position + Vector2(randf_range(-20.0, 20.0), randf_range(-20.0, 20.0))
+		get_parent().add_child(hb)

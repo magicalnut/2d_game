@@ -41,6 +41,8 @@ var _max_hp: float = 1.0
 var _frozen: bool = false   # 时空沙漏冻结：锁定移动与攻击，但仍可被伤害
 var _hit_fx_timer: float = 0.0  # 受击火花冷却，避免连发弹幕时火花刷屏
 var _knockback: Vector2 = Vector2.ZERO  # 当前击退速度（被毁灭重拳等击飞时），逐帧衰减
+var _rival_target: Node2D = null       # 远程敌人当前锁定的目标（玩家或水晶）
+var _rival_target_timer: float = 0.0   # 重新选择目标的计时器
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
@@ -79,12 +81,25 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var player: Node2D = get_tree().get_first_node_in_group("player") as Node2D
-	if not is_instance_valid(player):
+	var crystal: Node2D = get_tree().get_first_node_in_group("crystal") as Node2D
+	# 远程敌人随机选择目标（玩家或水晶），每3~5秒重新选择
+	var target: Node2D
+	if ranged and is_instance_valid(crystal) and is_instance_valid(player):
+		_rival_target_timer -= delta
+		if _rival_target == null or _rival_target_timer <= 0.0:
+			_rival_target = crystal if randf() < 0.5 else player
+			_rival_target_timer = randf_range(3.0, 5.0)
+		target = _rival_target
+	elif is_instance_valid(crystal):
+		target = crystal
+	else:
+		target = player
+	if not is_instance_valid(target):
 		velocity = Vector2.ZERO
 		_play_idle()
 		return
 
-	var to_player: Vector2 = player.global_position - global_position
+	var to_player: Vector2 = target.global_position - global_position
 	var dist: float = to_player.length()
 
 	if stationary:
@@ -106,7 +121,7 @@ func _physics_process(delta: float) -> void:
 			_play_walk()
 			move_and_slide()
 			if _attack_timer <= 0.0:
-				_fire_at_player(player)
+				_fire_at_player(target)
 				_attack_timer = fire_rate
 		elif dist < preferred_range * 0.7:
 			# 太近，后撤保持距离（风筝走位）
@@ -114,18 +129,22 @@ func _physics_process(delta: float) -> void:
 			_play_walk()
 			move_and_slide()
 			if _attack_timer <= 0.0:
-				_fire_at_player(player)
+				_fire_at_player(target)
 				_attack_timer = fire_rate
 		else:
 			# 理想站位（preferred_range 附近），停下开火
 			velocity = Vector2.ZERO
 			_play_idle()
 			if _attack_timer <= 0.0:
-				_fire_at_player(player)
+				_fire_at_player(target)
 				_attack_timer = fire_rate
 	else:
 		# 近战：原有逻辑（追击 + 接触伤害）
-		if dist > attack_range:
+		# 对水晶目标：补偿碰撞半径，让敌人到达碰撞边界即可攻击
+		var effective_range: float = attack_range
+		if target == crystal and is_instance_valid(crystal):
+			effective_range = attack_range + 35.0
+		if dist > effective_range:
 			velocity = to_player.normalized() * speed
 			_update_facing(to_player)
 			_play_walk()
@@ -133,15 +152,18 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity = Vector2.ZERO
 			_play_idle()
-			if _attack_timer <= 0.0 and player.has_method("take_damage"):
-				player.take_damage(touch_damage)
+			if _attack_timer <= 0.0:
+				if is_instance_valid(crystal) and crystal.has_method("take_damage"):
+					crystal.take_damage(touch_damage)
+				elif player.has_method("take_damage"):
+					player.take_damage(touch_damage)
 				_attack_timer = attack_interval
 
 	# BOSS：无论近战/远程分支，周期性向四周发射环形弹幕
 	if boss:
 		_boss_timer -= delta
 		if _boss_timer <= 0.0:
-			_boss_fire_ring(player)
+			_boss_fire_ring(target)
 			_boss_timer = BOSS_FIRE_INTERVAL
 
 func _update_facing(dir: Vector2) -> void:
@@ -167,18 +189,20 @@ func _play_idle() -> void:
 		sprite.flip_h = false
 		sprite.play("idle")
 
-func _fire_at_player(player: Node2D) -> void:
+func _fire_at_player(target: Node2D) -> void:
 	if bullet_scene == null:
+		return
+	if not is_instance_valid(target):
 		return
 	var b = bullet_scene.instantiate()
 	b.global_position = global_position
-	b.direction = (player.global_position - global_position).normalized()
+	b.direction = (target.global_position - global_position).normalized()
 	b.speed = bullet_speed
 	b.damage = bullet_damage
 	get_parent().add_child(b)
 
 # BOSS 环形弹幕：以自身为中心向四周均匀发射一圈子弹
-func _boss_fire_ring(player: Node2D) -> void:
+func _boss_fire_ring(_target: Node2D) -> void:
 	if bullet_scene == null:
 		return
 	var n: int = 16

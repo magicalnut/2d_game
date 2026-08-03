@@ -1,0 +1,29 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Assets/Scripts/level_data.gd" id="1_level_data"]
+
+[resource]
+script = ExtResource("1_level_data")
+level_id = "level_06"
+display_name = "BOSS连战"
+description = "依次挑战五位BOSS，经验值大幅提升。击败BOSS或阵亡即结束。根据击败数量获得评级。"
+unlock_requirement = "level_05"
+time_limit = 0.0
+difficulty_multiplier = 1.0
+stages = [{
+"stage_id": "stage_1",
+"name": "BOSS连战",
+"objective_type": "boss_rush",
+"target_value": 5.0,
+"enemy_types": [],
+"enemy_count": 0,
+"spawn_interval": 0.0,
+"difficulty_multiplier": 1.0,
+"rewards": {
+"exp": 0
+}
+}]
+rewards = {
+"diamonds": 0,
+"first_clear_gear": ""
+}

@@ -27,6 +27,11 @@ func _ready() -> void:
 				for slot in defaults[char_id].keys():
 					if EquipmentManager.is_slot_unlocked(slot):
 						RunStats.equipped_gear[slot] = EquipmentManager.create_instance(defaults[char_id][slot], 1, 1)
+	# 猎杀行动：apply_run_mods 在 _setup_level_mode 中已被调用，现在回满血
+	if RunStats != null and RunStats.game_mode == "level" and RunStats.selected_level_id == "level_05":
+		var pl = get_tree().get_first_node_in_group("player")
+		if pl != null and pl.has_method("heal") and pl.has_method("get_max_hp") and pl.has_method("get_hp"):
+			pl.heal(pl.get_max_hp() - pl.get_hp())
 
 func _setup_endless_mode() -> void:
 	if RunStats != null and SkillManager != null:

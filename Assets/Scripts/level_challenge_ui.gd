@@ -1,11 +1,11 @@
-class_name LevelSelectUI
 extends Control
 
 const MAIN_SCENE := "res://Scenes/main.tscn"
+const LEVEL_MODE_SCENE := "res://Scenes/level_mode.tscn"
 const MENU_SCENE := "res://Scenes/menu.tscn"
 const LEVEL_DATA_PATH := "res://Assets/Resources/Levels/"
 const NOVICE_LEVELS: Array[String] = ["level_01", "level_02", "level_03"]
-const OFFICIAL_LEVELS: Array[String] = []   # 正式关卡内容待定
+const OFFICIAL_LEVELS: Array[String] = ["level_04", "level_05", "level_06"]
 
 const FONT_DIR := "res://Assets/Fonts/"
 const TITLE_DIR := "res://Assets/Sprites/Title/"
@@ -15,9 +15,7 @@ const TITLE_SCALE: float = 1.6
 
 var _level_data_cache: Dictionary = {}
 var _selected_level: String = ""
-var _card_root: HBoxContainer = null
 var _fnt: Font = null
-var _content_area: Control = null
 var _title_labels: Array[Label] = []
 
 func _ready() -> void:
@@ -27,7 +25,7 @@ func _ready() -> void:
 	_build_background()
 	_build_top_bar()
 	_build_bottom_bar()
-	_show_category_select()
+	_show_levels()
 
 func _build_background() -> void:
 	var bg_img := TextureRect.new()
@@ -76,7 +74,7 @@ func _build_bottom_bar() -> void:
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.add_theme_constant_override("separation", 10)
 	bottom.add_child(_spacer(24.0))
-	var back := _make_img_button(BTN_DIR + "back_to_menu.png", "返回主菜单", _on_back,
+	var back := _make_img_button(BTN_DIR + "back_to_menu.png", "返回", _on_back,
 		Color(0.18, 0.14, 0.22), Color(0.78, 0.45, 0.98), Vector2(240.0, 64.0), 0.8)
 	var back_row := HBoxContainer.new()
 	back_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -86,203 +84,44 @@ func _build_bottom_bar() -> void:
 	bottom.add_child(_spacer(22.0))
 	add_child(bottom)
 
-func _clear_content() -> void:
-	if _content_area != null:
-		_content_area.queue_free()
-	_content_area = Control.new()
-	_content_area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_content_area.offset_top = 110.0
-	_content_area.offset_bottom = 90.0
-	_content_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_content_area)
+func _show_levels() -> void:
+	var content := Control.new()
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.offset_top = 110.0
+	content.offset_bottom = -120.0
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(content)
 
-func _set_page_title(text: String) -> void:
-	for lbl in _title_labels:
-		lbl.text = text
+	var back_btn := _make_back_btn()
+	add_child(back_btn)
 
-func _show_category_select() -> void:
-	_clear_content()
-	_set_page_title("关卡选择")
+	if RunStats.level_category == "official":
+		_show_official_levels(content)
+	else:
+		_show_novice_levels(content)
+
+func _show_novice_levels(content: Control) -> void:
 	var hbox := HBoxContainer.new()
 	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hbox.offset_top = -160.0
+	hbox.offset_top = -20.0
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_theme_constant_override("separation", 100)
+	hbox.add_theme_constant_override("separation", 60)
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_content_area.add_child(hbox)
-
-	var novice_btn := _make_category_card("新手关卡", "适合初学者的基础挑战", Color(0.35, 0.85, 0.55), "🗡️", false, func():
-		_show_novice_levels())
-	hbox.add_child(novice_btn)
-
-	var all_novice_done: bool = true
-	for id in NOVICE_LEVELS:
-		if not _is_level_completed(id):
-			all_novice_done = false
-			break
-	var official_btn := _make_category_card("正式关卡", "通关所有新手关卡后解锁", Color(0.75, 0.55, 1.0), "⚔️", not all_novice_done, func():
-		if all_novice_done:
-			_show_official_levels()
-	)
-	hbox.add_child(official_btn)
-
-func _make_category_card(title: String, desc: String, accent: Color, icon: String, locked: bool, cb: Callable) -> Control:
-	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(260.0, 340.0)
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-
-	var panel := Panel.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_apply_card_panel_style(panel, true, false)
-	wrap.add_child(panel)
-
-	var hbox := HBoxContainer.new()
-	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hbox.offset_left = 20.0
-	hbox.offset_right = -20.0
-	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_theme_constant_override("separation", 14)
-	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(hbox)
-
-	var icon_lbl := Label.new()
-	icon_lbl.text = icon
-	icon_lbl.add_theme_font_size_override("font_size", 44)
-	icon_lbl.add_theme_color_override("font_color", accent)
-	hbox.add_child(icon_lbl)
-
-	var inner := VBoxContainer.new()
-	inner.alignment = BoxContainer.ALIGNMENT_CENTER
-	inner.add_theme_constant_override("separation", 8)
-	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hbox.add_child(inner)
-
-	var title_lbl := Label.new()
-	title_lbl.text = title
-	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_lbl.add_theme_font_size_override("font_size", 32)
-	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
-	if _fnt != null:
-		title_lbl.add_theme_font_override("font", _fnt)
-	title_lbl.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
-	title_lbl.add_theme_constant_override("outline_size", 2)
-	inner.add_child(title_lbl)
-
-	var desc_lbl := Label.new()
-	if locked:
-		desc_lbl.text = "🔒 " + desc
-	else:
-		desc_lbl.text = desc
-	desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc_lbl.add_theme_font_size_override("font_size", 13)
-	desc_lbl.add_theme_color_override("font_color", Color(0.65, 0.68, 0.72) if locked else Color(0.75, 0.78, 0.85))
-	inner.add_child(desc_lbl)
-
-	var hit := Button.new()
-	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hit.flat = true
-	hit.focus_mode = Control.FOCUS_NONE
-	var empty := StyleBoxEmpty.new()
-	hit.add_theme_stylebox_override("normal", empty)
-	hit.add_theme_stylebox_override("hover", empty)
-	hit.add_theme_stylebox_override("pressed", empty)
-	hit.add_theme_stylebox_override("focus", empty)
-
-	if locked:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.06, 0.06, 0.08, 0.90)
-		sb.border_color = Color(0.35, 0.35, 0.40, 0.50)
-		sb.set_border_width_all(2)
-		sb.set_corner_radius_all(16)
-		panel.add_theme_stylebox_override("panel", sb)
-		hit.mouse_entered.connect(func():
-			var tw := create_tween()
-			tw.tween_property(wrap, "rotation", -0.02, 0.04)
-			tw.tween_property(wrap, "rotation", 0.02, 0.08)
-			tw.tween_property(wrap, "rotation", -0.015, 0.06)
-			tw.tween_property(wrap, "rotation", 0.0, 0.05))
-		hit.pressed.connect(func():
-			desc_lbl.text = "❌ 未完成全部新手关卡"
-			desc_lbl.add_theme_color_override("font_color", Color(0.9, 0.4, 0.4))
-			var tw := create_tween()
-			tw.tween_property(wrap, "rotation", -0.03, 0.04)
-			tw.tween_property(wrap, "rotation", 0.03, 0.06)
-			tw.tween_property(wrap, "rotation", -0.02, 0.05)
-			tw.tween_property(wrap, "rotation", 0.0, 0.03)
-			tw.tween_callback(func():
-				desc_lbl.text = "🔒 " + desc
-				desc_lbl.add_theme_color_override("font_color", Color(0.65, 0.68, 0.72))))
-	else:
-		hit.mouse_entered.connect(func(): _apply_card_panel_style(panel, true, true))
-		hit.mouse_exited.connect(func(): _apply_card_panel_style(panel, true, false))
-		hit.pressed.connect(cb)
-	wrap.add_child(hit)
-
-	return wrap
-
-func _make_back_btn() -> Control:
-	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(80.0, 40.0)
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.position = Vector2(12.0, 6.0)
-
-	var btn := Button.new()
-	btn.text = "◂ 返回"
-	btn.flat = true
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.add_theme_font_size_override("font_size", 18)
-	btn.add_theme_color_override("font_color", Color(0.55, 0.70, 0.90))
-	btn.add_theme_color_override("font_hover_color", Color(0.75, 0.85, 1.0))
-	btn.add_theme_color_override("font_pressed_color", Color(0.40, 0.55, 0.75))
-	btn.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	btn.pressed.connect(_show_category_select)
-	wrap.add_child(btn)
-
-	return wrap
-
-func _show_novice_levels() -> void:
-	_clear_content()
-	_set_page_title("关卡挑战")
-	_card_root = HBoxContainer.new()
-	_card_root.alignment = BoxContainer.ALIGNMENT_CENTER
-	_card_root.add_theme_constant_override("separation", 100)
-	_card_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_card_root.offset_top = -20.0
-	_content_area.add_child(_card_root)
-
-	_content_area.add_child(_make_back_btn())
+	content.add_child(hbox)
 
 	for id in NOVICE_LEVELS:
 		var data: LevelData = _level_data_cache.get(id) as LevelData
 		var unlocked: bool = _is_level_unlocked(id)
 		var completed: bool = _is_level_completed(id)
-		_card_root.add_child(_make_level_card(id, data, unlocked, completed))
+		hbox.add_child(_make_level_card(id, data, unlocked, completed))
 
-func _show_official_levels() -> void:
-	_clear_content()
-	_set_page_title("关卡挑战")
+func _show_official_levels(content: Control) -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.offset_top = -20.0
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_content_area.add_child(center)
+	content.add_child(center)
 
-	_content_area.add_child(_make_back_btn())
-
-	var card_root := HBoxContainer.new()
-	card_root.alignment = BoxContainer.ALIGNMENT_CENTER
-	card_root.add_theme_constant_override("separation", 100)
-	card_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	center.add_child(card_root)
-
-	for id in OFFICIAL_LEVELS:
-		var data: LevelData = _level_data_cache.get(id) as LevelData
-		card_root.add_child(_make_official_card(id, data, true))
 	if OFFICIAL_LEVELS.is_empty():
 		var placeholder := Panel.new()
 		placeholder.custom_minimum_size = Vector2(420.0, 200.0)
@@ -322,22 +161,181 @@ func _show_official_levels() -> void:
 		sub.add_theme_font_size_override("font_size", 16)
 		sub.add_theme_color_override("font_color", Color(0.55, 0.58, 0.62))
 		pvbox.add_child(sub)
+	else:
+		var card_root := HBoxContainer.new()
+		card_root.alignment = BoxContainer.ALIGNMENT_CENTER
+		card_root.add_theme_constant_override("separation", 100)
+		card_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		center.add_child(card_root)
+		for id in OFFICIAL_LEVELS:
+			var data: LevelData = _level_data_cache.get(id) as LevelData
+			card_root.add_child(_make_official_card(id, data, _is_level_unlocked(id)))
 
-func _load_all_level_data() -> void:
-	var all_ids: Array[String] = []
-	all_ids.append_array(NOVICE_LEVELS)
-	all_ids.append_array(OFFICIAL_LEVELS)
-	for id in all_ids:
-		var path: String = LEVEL_DATA_PATH + id + ".tres"
-		if ResourceLoader.exists(path):
-			var data: LevelData = load(path) as LevelData
-			if data != null:
-				_level_data_cache[id] = data
+func _make_level_card(level_id: String, data: LevelData, unlocked: bool, completed: bool) -> Control:
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(300.0, 380.0)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	var panel := Panel.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_apply_card_panel_style(panel, unlocked, false)
+	wrap.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 22.0
+	vbox.offset_right = -22.0
+	vbox.offset_top = 10.0
+	vbox.offset_bottom = -10.0
+	vbox.alignment = BoxContainer.ALIGNMENT_BEGIN
+	vbox.add_theme_constant_override("separation", 0)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_child(vbox)
+
+	var display_name: String = level_id if data == null else data.display_name
+	var description: String = "" if data == null else data.description
+	var objective_text: String = _format_objective(data)
+	var reward_text: String = _format_rewards(data)
+
+	var badge := Label.new()
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	badge.add_theme_font_size_override("font_size", 14)
+	if completed:
+		badge.text = "✓ 已通关"
+		badge.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55))
+	elif not unlocked:
+		badge.text = "🔒 未解锁"
+		badge.add_theme_color_override("font_color", Color(0.65, 0.65, 0.68))
+	else:
+		badge.text = ""
+	badge.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	vbox.add_child(badge)
+
+	var title := Label.new()
+	title.text = display_name
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
+	if _fnt != null:
+		title.add_theme_font_override("font", _fnt)
+	title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	title.add_theme_constant_override("outline_size", 3)
+	title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	vbox.add_child(title)
+
+	var desc := Label.new()
+	desc.text = description
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.add_theme_font_size_override("font_size", 15)
+	desc.add_theme_color_override("font_color", Color(0.80, 0.82, 0.88))
+	desc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	vbox.add_child(desc)
+
+	var sp1 := Control.new()
+	sp1.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(sp1)
+
+	var obj_col := VBoxContainer.new()
+	obj_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	obj_col.add_theme_constant_override("separation", 6)
+	obj_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	obj_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(obj_col)
+
+	var obj_title := Label.new()
+	obj_title.text = "⚔ 目标"
+	obj_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	obj_title.add_theme_font_size_override("font_size", 18)
+	obj_title.add_theme_color_override("font_color", Color(0.6, 0.75, 0.95))
+	obj_title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	obj_title.add_theme_constant_override("outline_size", 2)
+	obj_title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	obj_col.add_child(obj_title)
+
+	var obj := Label.new()
+	obj.text = objective_text
+	obj.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	obj.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	obj.add_theme_font_size_override("font_size", 22)
+	obj.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	obj.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	obj.add_theme_constant_override("outline_size", 2)
+	obj.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	obj_col.add_child(obj)
+
+	var sp2 := Control.new()
+	sp2.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(sp2)
+
+	var line := ColorRect.new()
+	line.custom_minimum_size = Vector2(0.0, 1.0)
+	line.color = Color(0.55, 0.65, 0.78, 0.25)
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(line)
+
+	var rwd_col := VBoxContainer.new()
+	rwd_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	rwd_col.add_theme_constant_override("separation", 6)
+	rwd_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rwd_col.size_flags_vertical = Control.SIZE_SHRINK_END
+	rwd_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(rwd_col)
+
+	var rwd_title := Label.new()
+	rwd_title.text = "💎 奖励"
+	rwd_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rwd_title.add_theme_font_size_override("font_size", 18)
+	rwd_title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	rwd_title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	rwd_title.add_theme_constant_override("outline_size", 2)
+	rwd_title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	rwd_col.add_child(rwd_title)
+
+	var rwd := Label.new()
+	rwd.text = reward_text
+	rwd.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rwd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rwd.add_theme_font_size_override("font_size", 20)
+	rwd.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	rwd.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	rwd.add_theme_constant_override("outline_size", 2)
+	rwd.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	rwd_col.add_child(rwd)
+
+	var hit := Button.new()
+	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hit.flat = true
+	hit.focus_mode = Control.FOCUS_NONE
+	hit.disabled = not unlocked
+	hit.mouse_filter = Control.MOUSE_FILTER_STOP if unlocked else Control.MOUSE_FILTER_IGNORE
+	var empty := StyleBoxEmpty.new()
+	hit.add_theme_stylebox_override("normal", empty)
+	hit.add_theme_stylebox_override("hover", empty)
+	hit.add_theme_stylebox_override("pressed", empty)
+	hit.add_theme_stylebox_override("focus", empty)
+	hit.add_theme_stylebox_override("disabled", empty)
+	if unlocked:
+		hit.mouse_entered.connect(func():
+			_apply_card_panel_style(panel, true, true)
+			var tw := create_tween()
+			tw.tween_property(wrap, "scale", Vector2(1.03, 1.03), 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC))
+		hit.mouse_exited.connect(func():
+			_apply_card_panel_style(panel, true, false)
+			var tw := create_tween()
+			tw.tween_property(wrap, "scale", Vector2.ONE, 0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC))
+		hit.pressed.connect(_on_level_selected.bind(level_id))
+	wrap.add_child(hit)
+	return wrap
 
 func _make_official_card(level_id: String, data: LevelData, unlocked: bool) -> Control:
 	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(260.0, 80.0)
+	wrap.custom_minimum_size = Vector2(280.0, 340.0)
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var lock_text: Label = null
 
 	var panel := Panel.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -371,7 +369,7 @@ func _make_official_card(level_id: String, data: LevelData, unlocked: bool) -> C
 		lock.add_theme_font_size_override("font_size", 42)
 		lock.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.8))
 		vbox.add_child(lock)
-		var lock_text := Label.new()
+		lock_text = Label.new()
 		lock_text.text = "通关所有新手关卡后解锁"
 		lock_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lock_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -385,138 +383,84 @@ func _make_official_card(level_id: String, data: LevelData, unlocked: bool) -> C
 		name_lbl.add_theme_font_size_override("font_size", 20)
 		name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
 		vbox.add_child(name_lbl)
-	return wrap
 
-func _make_level_card(level_id: String, data: LevelData, unlocked: bool, completed: bool) -> Control:
-	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(260.0, 80.0)
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var desc_lbl := Label.new()
+		desc_lbl.text = data.description if data != null else ""
+		desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc_lbl.add_theme_font_size_override("font_size", 14)
+		desc_lbl.add_theme_color_override("font_color", Color(0.75, 0.78, 0.82))
+		vbox.add_child(desc_lbl)
 
-	var panel := Panel.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_apply_card_panel_style(panel, unlocked, false)
-	wrap.add_child(panel)
+		var obj_col := VBoxContainer.new()
+		obj_col.alignment = BoxContainer.ALIGNMENT_CENTER
+		obj_col.add_theme_constant_override("separation", 2)
+		obj_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(obj_col)
 
-	var vbox := VBoxContainer.new()
-	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vbox.offset_left = 12.0
-	vbox.offset_right = -12.0
-	vbox.offset_top = 4.0
-	vbox.offset_bottom = -4.0
-	vbox.alignment = BoxContainer.ALIGNMENT_BEGIN
-	vbox.add_theme_constant_override("separation", 0)
-	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(vbox)
+		var obj_icon := Label.new()
+		obj_icon.text = "⚔ 目标"
+		obj_icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		obj_icon.add_theme_font_size_override("font_size", 15)
+		obj_icon.add_theme_color_override("font_color", Color(0.65, 0.75, 0.90))
+		obj_col.add_child(obj_icon)
 
-	var display_name: String = level_id if data == null else data.display_name
-	var description: String = "" if data == null else data.description
-	var objective_text: String = _format_objective(data)
-	var reward_text: String = _format_rewards(data)
+		var obj_lbl := Label.new()
+		obj_lbl.text = _format_objective(data)
+		obj_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		obj_lbl.add_theme_font_size_override("font_size", 18)
+		obj_lbl.add_theme_color_override("font_color", Color(0.95, 0.90, 0.70))
+		obj_col.add_child(obj_lbl)
 
-	var badge := Label.new()
-	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	badge.add_theme_font_size_override("font_size", 11)
-	if completed:
-		badge.text = "✓ 已通关"
-		badge.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55))
-	elif not unlocked:
-		badge.text = "🔒 未解锁"
-		badge.add_theme_color_override("font_color", Color(0.65, 0.65, 0.68))
-	else:
-		badge.text = ""
-	badge.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	vbox.add_child(badge)
+		var sep2 := HSeparator.new()
+		sep2.add_theme_constant_override("separation", 6)
+		vbox.add_child(sep2)
 
-	var title := Label.new()
-	title.text = display_name
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
-	if _fnt != null:
-		title.add_theme_font_override("font", _fnt)
-	title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	vbox.add_child(title)
+		var star_col := VBoxContainer.new()
+		star_col.alignment = BoxContainer.ALIGNMENT_CENTER
+		star_col.add_theme_constant_override("separation", 2)
+		star_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(star_col)
 
-	var desc := Label.new()
-	desc.text = description
-	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.add_theme_font_size_override("font_size", 11)
-	desc.add_theme_color_override("font_color", Color(0.82, 0.86, 0.92))
-	desc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	vbox.add_child(desc)
+		var star_title := Label.new()
+		star_title.text = "⭐ 评级"
+		star_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		star_title.add_theme_font_size_override("font_size", 15)
+		star_title.add_theme_color_override("font_color", Color(0.65, 0.75, 0.90))
+		star_col.add_child(star_title)
 
-	var sp1 := Control.new()
-	sp1.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(sp1)
+		# 根据已保存的星级显示
+		var earned_stars: int = 0
+		if RunStats != null:
+			earned_stars = RunStats.get_level_stars(level_id)
+		var star_text: String = ""
+		var star_color: Color
+		if earned_stars >= 3:
+			star_text = "★★★"
+			star_color = Color(1.0, 0.85, 0.2)
+		elif earned_stars == 2:
+			star_text = "★★☆"
+			star_color = Color(1.0, 0.85, 0.2)
+		elif earned_stars == 1:
+			star_text = "★☆☆"
+			star_color = Color(0.9, 0.75, 0.3)
+		else:
+			star_text = "☆☆☆"
+			star_color = Color(0.6, 0.6, 0.6)
 
-	var line := ColorRect.new()
-	line.custom_minimum_size = Vector2(0.0, 1.0)
-	line.color = Color(0.55, 0.65, 0.78, 0.25)
-	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	vbox.add_child(line)
-
-	var bottom_row := HBoxContainer.new()
-	bottom_row.add_theme_constant_override("separation", 6)
-	bottom_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	bottom_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_child(bottom_row)
-
-	var obj_col := VBoxContainer.new()
-	obj_col.alignment = BoxContainer.ALIGNMENT_CENTER
-	obj_col.add_theme_constant_override("separation", 2)
-	obj_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	obj_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bottom_row.add_child(obj_col)
-
-	var obj_title := Label.new()
-	obj_title.text = "目标"
-	obj_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	obj_title.add_theme_font_size_override("font_size", 12)
-	obj_title.add_theme_color_override("font_color", Color(0.7, 0.8, 0.95))
-	obj_title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	obj_col.add_child(obj_title)
-
-	var obj := Label.new()
-	obj.text = objective_text
-	obj.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	obj.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	obj.add_theme_font_size_override("font_size", 13)
-	obj.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
-	obj.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	obj_col.add_child(obj)
-
-	var rwd_col := VBoxContainer.new()
-	rwd_col.alignment = BoxContainer.ALIGNMENT_CENTER
-	rwd_col.add_theme_constant_override("separation", 2)
-	rwd_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rwd_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bottom_row.add_child(rwd_col)
-
-	var rwd_title := Label.new()
-	rwd_title.text = "奖励"
-	rwd_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rwd_title.add_theme_font_size_override("font_size", 12)
-	rwd_title.add_theme_color_override("font_color", Color(0.7, 0.8, 0.95))
-	rwd_title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	rwd_col.add_child(rwd_title)
-
-	var rwd := Label.new()
-	rwd.text = reward_text
-	rwd.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rwd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rwd.add_theme_font_size_override("font_size", 12)
-	rwd.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
-	rwd.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	rwd_col.add_child(rwd)
+		var star_desc := Label.new()
+		star_desc.text = star_text
+		star_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		star_desc.add_theme_font_size_override("font_size", 36)
+		star_desc.add_theme_color_override("font_color", star_color)
+		star_col.add_child(star_desc)
 
 	var hit := Button.new()
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hit.flat = true
 	hit.focus_mode = Control.FOCUS_NONE
-	hit.disabled = not unlocked
-	hit.mouse_filter = Control.MOUSE_FILTER_STOP if unlocked else Control.MOUSE_FILTER_IGNORE
+	hit.disabled = false
+	hit.mouse_filter = Control.MOUSE_FILTER_STOP
 	var empty := StyleBoxEmpty.new()
 	hit.add_theme_stylebox_override("normal", empty)
 	hit.add_theme_stylebox_override("hover", empty)
@@ -524,11 +468,49 @@ func _make_level_card(level_id: String, data: LevelData, unlocked: bool, complet
 	hit.add_theme_stylebox_override("focus", empty)
 	hit.add_theme_stylebox_override("disabled", empty)
 	if unlocked:
-		hit.mouse_entered.connect(func(): _apply_card_panel_style(panel, true, true))
-		hit.mouse_exited.connect(func(): _apply_card_panel_style(panel, true, false))
+		hit.mouse_entered.connect(func():
+			_apply_card_panel_style(panel, true, true)
+			var tw := create_tween()
+			tw.tween_property(wrap, "scale", Vector2(1.03, 1.03), 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC))
+		hit.mouse_exited.connect(func():
+			_apply_card_panel_style(panel, true, false)
+			var tw := create_tween()
+			tw.tween_property(wrap, "scale", Vector2.ONE, 0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC))
 		hit.pressed.connect(_on_level_selected.bind(level_id))
+	else:
+		hit.pressed.connect(func():
+			lock_text.text = "❌ 需要先通关 %s" % _requirement_name(level_id)
+			lock_text.add_theme_color_override("font_color", Color(0.9, 0.4, 0.4))
+			var tw := create_tween()
+			tw.tween_property(wrap, "rotation", -0.03, 0.04)
+			tw.tween_property(wrap, "rotation", 0.03, 0.06)
+			tw.tween_property(wrap, "rotation", -0.02, 0.05)
+			tw.tween_property(wrap, "rotation", 0.0, 0.03))
 	wrap.add_child(hit)
 	return wrap
+
+func _make_back_btn() -> Control:
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(80.0, 40.0)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.position = Vector2(12.0, 6.0)
+
+	var btn := Button.new()
+	btn.text = "◂ 返回"
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_font_size_override("font_size", 18)
+	btn.add_theme_color_override("font_color", Color(0.55, 0.70, 0.90))
+	btn.add_theme_color_override("font_hover_color", Color(0.75, 0.85, 1.0))
+	btn.add_theme_color_override("font_pressed_color", Color(0.40, 0.55, 0.75))
+	btn.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	btn.pressed.connect(_on_back_to_level_mode)
+	wrap.add_child(btn)
+
+	return wrap
+
+func _on_back_to_level_mode() -> void:
+	get_tree().change_scene_to_file(LEVEL_MODE_SCENE)
 
 func _apply_card_panel_style(panel: Panel, unlocked: bool, hovered: bool) -> void:
 	var sb: StyleBox
@@ -594,6 +576,18 @@ func _is_level_unlocked(level_id: String) -> bool:
 		return false
 	return data.unlock_requirement.is_empty()
 
+func _requirement_name(level_id: String) -> String:
+	var data: LevelData = _level_data_cache.get(level_id) as LevelData
+	if data == null:
+		return "上一关"
+	var req: String = data.unlock_requirement
+	if req.is_empty():
+		return "上一关"
+	var req_data: LevelData = _level_data_cache.get(req) as LevelData
+	if req_data != null and not req_data.display_name.is_empty():
+		return req_data.display_name
+	return req
+
 func _is_level_completed(level_id: String) -> bool:
 	if RunStats != null:
 		return RunStats.is_level_completed(level_id)
@@ -608,6 +602,17 @@ func _on_level_selected(level_id: String) -> void:
 		RunStats.selected_level_id = level_id
 		RunStats.level_mode_result = ""
 	get_tree().change_scene_to_file(MAIN_SCENE)
+
+func _load_all_level_data() -> void:
+	var all_ids: Array[String] = []
+	all_ids.append_array(NOVICE_LEVELS)
+	all_ids.append_array(OFFICIAL_LEVELS)
+	for id in all_ids:
+		var path: String = LEVEL_DATA_PATH + id + ".tres"
+		if ResourceLoader.exists(path):
+			var data: LevelData = load(path) as LevelData
+			if data != null:
+				_level_data_cache[id] = data
 
 func _on_back() -> void:
 	get_tree().change_scene_to_file(MENU_SCENE)
