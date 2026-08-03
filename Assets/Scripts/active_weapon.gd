@@ -68,7 +68,7 @@ const LIGHTNING_RANGE: float = 440.0
 const BOLT_BASE_WIDTH: float = 4.0
 
 var _player: Node2D = null
-var _drone_sprite: Sprite2D = null
+var _drone_sprite: Sprite2D = null   # 单架无人机精灵（环绕玩家，向最近敌人扇形散射激光）
 var _book_sprite: Sprite2D = null
 var _fire_timer: float = 0.0
 var _pistol_flash_angle: float = 0.0     # 特工闪现手枪：当前绕玩家的角度
@@ -95,7 +95,7 @@ var _exec_count: int = 0              # 双枪绝杀：绝杀爆弹周期计数
 
 func _ready() -> void:
 	_player = get_parent()
-	# 无人机：创建一个可见的无人机实体悬浮在玩家身边
+	# 无人机：多架无人机精灵在 _physics_process 中按星级动态创建（每星一架）
 	if skill_id == "active_drone":
 		_drone_sprite = Sprite2D.new()
 		_drone_sprite.texture = DRONE_TEX
@@ -251,7 +251,7 @@ func _spawn_pistol(dir: Vector2, dmg: float, st: int, origin: Vector2 = Vector2.
 	p.global_position = origin if origin != Vector2.ZERO else global_position
 
 # 生成一个激光弹体（高速、青色、长轴朝向飞行方向，区别于通用子弹）
-func _spawn_laser(dir: Vector2, dmg: float) -> void:
+func _spawn_laser(dir: Vector2, dmg: float, origin: Vector2 = Vector2.ZERO) -> void:
 	var p := Area2D.new()
 	p.set_script(PROJ_SCRIPT)
 	p.direction = dir
@@ -265,7 +265,7 @@ func _spawn_laser(dir: Vector2, dmg: float) -> void:
 	if world == null:
 		return
 	world.add_child(p)
-	p.global_position = global_position
+	p.global_position = origin if origin != Vector2.ZERO else global_position
 
 # 特工：手枪在玩家四周"闪现"并射击；星级越高闪现越快（取消原"扇形多发"升级）
 func _fire_pistol(st: int) -> void:
@@ -343,7 +343,7 @@ func _spawn_muzzle_flash(pos: Vector2, dir: Vector2) -> void:
 	tw.parallel().tween_property(s, "modulate", Color(1.0, 1.0, 1.0, 0.0), 0.09)
 	tw.tween_callback(s.queue_free)
 
-# 无人机：从悬浮的无人机处向最近敌人发射一束激光（数量随星级递增）。
+# 无人机：从悬浮的无人机处向最近敌人方向扇形散射一束激光（数量随星级递增）。
 func _fire_drone_shot(st: int) -> void:
 	var count: int = st
 	var dmg: float = 1.0 + 0.5 * st

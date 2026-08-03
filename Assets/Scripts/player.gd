@@ -315,7 +315,7 @@ func apply_run_mods(hp_mult: float, speed_mult: float) -> void:
 	_apply_equipment_stats()   # 重新应用装备属性（叠加在角色基础之上）
 
 # 装备属性的基础值快照（防止重复叠加）
-var _base_max_hp: float = 15.0
+var _base_max_hp: float = 10000.0
 var _base_speed: float = 440.0
 var _base_bullet_damage: float = 1.0
 var _base_bullet_speed: float = 960.0
@@ -334,9 +334,16 @@ func _apply_equipment_stats() -> void:
 	var pickup_bonus: float = gear_stats.get("pickup_radius", 0.0)
 	var exp_bonus: float = gear_stats.get("exp_bonus", 0.0)
 
-	# 从基础值重新计算，避免重复叠加
+	# 从基础值重新计算，避免重复叠加（幂等）
+	var prev_max_hp: float = max_hp
 	max_hp = _base_max_hp + hp_bonus
-	if _hp > max_hp:
+	if max_hp > prev_max_hp:
+		# 装上提升上限的装备（如石肤护符 +8）时，把当前血量同步补上这部分增量，
+		# 避免读档 / 换装后血条"空出"这部分上限（正好 8 点的情况）。
+		_hp += (max_hp - prev_max_hp)
+		if _hp > max_hp:
+			_hp = max_hp
+	elif _hp > max_hp:
 		_hp = max_hp
 	speed = _base_speed + spd_bonus
 	bullet_damage = _base_bullet_damage + atk_bonus
@@ -452,6 +459,66 @@ func _flash_green() -> void:
 	var tween := create_tween()
 	tween.tween_property(self, "modulate", Color(0.55, 1.0, 0.55), 0.1)
 	tween.tween_property(self, "modulate", Color(1.0, 1.0, 1.0), 0.35)
+
+func export_state() -> Dictionary:
+	return {
+		"hp": _hp,
+		"max_hp": max_hp,
+		"level": _level,
+		"exp": _exp,
+		"exp_to_next": _exp_to_next,
+		"pending_levels": _pending_levels,
+		"facing": facing,
+		"speed": speed,
+		"bullet_damage": bullet_damage,
+		"bullet_speed": bullet_speed,
+		"magnet_radius": magnet_radius,
+		"xp_pickup_mult": xp_pickup_mult,
+		"xp_rate_mult": xp_rate_mult,
+		"invuln": _invuln,
+		"stunned": _stunned,
+		"kb_vel_x": _kb_vel.x,
+		"kb_vel_y": _kb_vel.y,
+		"dead": _dead,
+		"position_x": global_position.x,
+		"position_y": global_position.y,
+		"base_max_hp": _base_max_hp,
+		"base_speed": _base_speed,
+		"base_bullet_damage": _base_bullet_damage,
+		"base_bullet_speed": _base_bullet_speed,
+		"base_magnet_radius": _base_magnet_radius,
+		"base_xp_pickup_mult": _base_xp_pickup_mult,
+	}
+
+func restore_state(data: Dictionary) -> void:
+	# 读档进游戏：血量重置为满血，不继承存档里残存的剩余血量。
+	# 先恢复基础属性，再据此重新计算 max_hp（叠加当前装备加成），
+	# 最后无条件满血——避免"读档后血条显示几乎空"的观感问题。
+	_base_max_hp = data.get("base_max_hp", _base_max_hp)
+	_base_speed = data.get("base_speed", _base_speed)
+	_base_bullet_damage = data.get("base_bullet_damage", _base_bullet_damage)
+	_base_bullet_speed = data.get("base_bullet_speed", _base_bullet_speed)
+	_base_magnet_radius = data.get("base_magnet_radius", _base_magnet_radius)
+	_base_xp_pickup_mult = data.get("base_xp_pickup_mult", _base_xp_pickup_mult)
+	_apply_equipment_stats()   # 用恢复出的基础值 + 当前装备重算 max_hp
+	_hp = max_hp               # 读档默认满血
+	_level = data.get("level", 1)
+	_exp = data.get("exp", 0.0)
+	_exp_to_next = data.get("exp_to_next", _exp_to_next)
+	_pending_levels = data.get("pending_levels", 0)
+	facing = data.get("facing", "toward")
+	speed = data.get("speed", speed)
+	bullet_damage = data.get("bullet_damage", bullet_damage)
+	bullet_speed = data.get("bullet_speed", bullet_speed)
+	magnet_radius = data.get("magnet_radius", magnet_radius)
+	xp_pickup_mult = data.get("xp_pickup_mult", xp_pickup_mult)
+	xp_rate_mult = data.get("xp_rate_mult", xp_rate_mult)
+	_invuln = data.get("invuln", 0.0)
+	_stunned = data.get("stunned", false)
+	_kb_vel = Vector2(data.get("kb_vel_x", 0.0), data.get("kb_vel_y", 0.0))
+	_dead = data.get("dead", false)
+	global_position = Vector2(data.get("position_x", global_position.x), data.get("position_y", global_position.y))
+	queue_redraw()
 
 func _die() -> void:
 	_dead = true

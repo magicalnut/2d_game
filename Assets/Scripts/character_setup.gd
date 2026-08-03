@@ -21,6 +21,11 @@ const TITLE_DIR := "res://Assets/Sprites/Title/"
 const SLOT_DIR := "res://Assets/Sprites/UI/Slots/"   # 出战页六装备槽未来素材目录：放入 {id}.png 即自动显示（id 见 _DEPLOY_SLOTS）
 const CARD_BACK_TEX := "res://Assets/Sprites/UI/info_panel.png"   # 角色卡面背景（装备选择面板复用）
 const GEAR_ICON_DIR := "res://Assets/Sprites/UI/Gear/"   # 单件装备图标（按 def_id 命名，如 rune_of_fire.png）
+# 缺少 Gear 素材时的程序化图标字形：按槽位取汉字，配合稀有度颜色生成徽章
+const SLOT_GLYPHS := {
+	"rune": "符", "pet": "宠", "amulet": "护",
+	"potion": "药", "token": "信", "relic": "圣",
+}
 const DEPLOY_BG_DIR := "res://Assets/Sprites/UI/DeployBG/"   # 出战页背景图目录：放入 deploy_bg.png 即自动作为整备页背景
 # 出战整备页：角色卡居中，左右各三装备槽呈发散(扇形)分布；pos 为槽左上角(相对舞台本地坐标，舞台 680×560)
 const _DEPLOY_SLOTS: Array = [
@@ -68,6 +73,13 @@ var _deploy_lv_label: Label = null
 var _deploy_dia_label: Label = null
 var _deploy_up_btn: Button = null
 var _deploy_buy_btn: Button = null
+var _load_slot: int = -1
+
+# 道具悬停提示框（鼠标放到装备图标上时显示效果）。懒创建、常驻本场景、置顶且不拦截输入。
+var _gear_tooltip: PanelContainer = null
+var _tt_title: Label = null
+var _tt_desc: Label = null
+var _gear_tt_pos := Vector2.ZERO   # 装备悬停信息框的固定锚定位置（贴合装备，不随指针移动）
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -76,10 +88,50 @@ func _ready() -> void:
 		_selected = _char_ids.find(RunStats.chosen_character)
 		if _selected < 0:
 			_selected = 0
+	# 读档：一个存档对应一个角色。按存档角色预选，并跳过角色转盘，直接进入战备页。
+	if SaveManager != null and SaveManager.menu_load_slot >= 0:
+		_load_slot = SaveManager.menu_load_slot
+		SaveManager.menu_load_slot = -1
+		var meta: Dictionary = SaveManager.get_slot_meta(_load_slot)
+		var saved_char: String = meta.get("character", "")
+		if saved_char != "":
+			var si: int = _char_ids.find(saved_char)
+			if si >= 0:
+				_selected = si
+		# 让战备页英雄卡与出战都使用存档角色（saved_char 为空时保留默认，兼容旧档）
+		if RunStats != null and saved_char != "":
+			RunStats.chosen_character = saved_char
+		# 绑定槽位并恢复养成数据（等级/钻石/仓库/出战配装）。养成存档无中途快照，
+		# 故 load_in_game_slot 后清掉 pending_restore 标记，避免 main.gd 误恢复旧局面。
+		var data: Dictionary = SaveManager.load_in_game_slot(_load_slot)
+		if data.has("equip"):
+			var eq: Dictionary = data["equip"]
+			if EquipmentManager != null:
+				EquipmentManager.apply_equip_state(eq)
+			if RunStats != null and eq.has("equipped_gear") and eq["equipped_gear"] is Dictionary:
+				RunStats.equipped_gear = (eq["equipped_gear"] as Dictionary).duplicate(true)
+		SaveManager.pending_restore_slot = -1
+		SaveManager.pending_restore_data = {}
+		_build_ui()
+		_show_challenge_picker()
+		return
 	_build_ui()
 	var step: float = TAU / float(max(_char_ids.size(), 1))
 	_phase = -_selected * step
 	_phase_target = _phase
+
+	# 阵亡/关卡结束「返回战备页」：跳过角色转盘，直接进入战备（出战整备）页。
+	# 此时 RunStats.equipped_gear / EquipmentManager.diamonds 已是本局结束后固化进槽的值，
+	# 战备页直接展示，玩家可立即重新配装/升级并出击，形成「战备↔对局」的局外养成循环。
+	if SaveManager != null and SaveManager.back_to_loadout and SaveManager.active_slot >= 0:
+		SaveManager.back_to_loadout = false
+		_load_slot = SaveManager.active_slot
+		if RunStats != null:
+			var bidx: int = _char_ids.find(RunStats.chosen_character)
+			if bidx >= 0:
+				_selected = bidx
+		_show_challenge_picker()
+		return
 
 func _build_ui() -> void:
 	# 背景图 + 轻度暗化 + 径向暗角（聚焦中央，让视线落在转盘上）
@@ -151,9 +203,9 @@ func _build_ui() -> void:
 	var action_row := HBoxContainer.new()
 	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	action_row.add_theme_constant_override("separation", 18)
-	var start := _make_img_button(BTN_DIR + "confirm_battle.png", "确认出战", _on_confirm, Color(0.16, 0.42, 0.26), Color(0.55, 1.0, 0.65), Vector2(240.0, 64.0), 0.8)
+	var start := _make_text_card_button("确认出战", _on_confirm, UIColors.GOLD, Vector2(240.0, 64.0))
 	action_row.add_child(start)
-	var back := _make_img_button(BTN_DIR + "back_to_menu.png", "返回主菜单", _on_back, Color(0.18, 0.14, 0.22), Color(0.78, 0.45, 0.98), Vector2(240.0, 64.0), 0.8)
+	var back := _make_text_card_button("返回主菜单", _on_back, UIColors.WHITE, Vector2(240.0, 64.0))
 	action_row.add_child(back)
 	bottom.add_child(action_row)
 
@@ -196,14 +248,14 @@ func _create_card() -> Dictionary:
 	var nm := Label.new()
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.add_theme_font_size_override("font_size", 26)
-	nm.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	nm.add_theme_color_override("font_color", UIColors.GOLD)
 	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_add_text_bit_slot(nm)
 	v.add_child(nm)
 	var wp := Label.new()
 	wp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	wp.add_theme_font_size_override("font_size", 15)
-	wp.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
+	wp.add_theme_color_override("font_color", UIColors.GRAY)
 	wp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_add_text_bit_slot(wp)
 	v.add_child(wp)
@@ -314,13 +366,16 @@ func _fill_avatar(avatar: Control, def: Dictionary) -> void:
 	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lb.add_theme_font_size_override("font_size", 40)
-	lb.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	lb.add_theme_color_override("font_color", UIColors.WHITE)
 	lb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	avatar.add_child(lb)
 
 # —— 旋转木马核心：每帧按相位重排所有卡片 ——
 func _process(delta: float) -> void:
+	# 道具悬停提示框：固定在「装备外侧、与装备竖向居中」处（见 _show_gear_tooltip 计算），不随指针移动，也不压其它装备
+	if _gear_tooltip != null and _gear_tooltip.visible:
+		_gear_tooltip.position = _gear_tt_pos
 	if _char_ids.size() == 0:
 		return
 	_phase = lerp(_phase, _phase_target, 1.0 - exp(-delta * 9.0))
@@ -459,6 +514,10 @@ func _make_arrow(side: String, cb: Callable) -> Control:
 func _on_confirm() -> void:
 	if RunStats != null:
 		RunStats.chosen_character = _char_ids[_selected]
+	# 新档：把选定角色固化进存档槽（一个存档对应一个角色），随后进入战备页。
+	# 读档分支的养成数据恢复已在 _ready 的读档快捷路径里完成，这里只处理新档。
+	if SaveManager != null and SaveManager.active_slot >= 0:
+		SaveManager.set_slot_character(SaveManager.active_slot, RunStats.chosen_character)
 	_show_challenge_picker()
 
 # 确认出战 → 出战整备页：左侧英雄卡 + 六装备槽 + 模式选择 + 槽位等级升级
@@ -476,12 +535,9 @@ func _show_challenge_picker() -> void:
 	var id: String = _char_ids[_selected]
 	var def: Dictionary = RunStats.CHARACTERS[id]
 
-	# 加载角色专属装备配置
-	if RunStats != null:
-		if RunStats.character_gear.has(id):
-			RunStats.equipped_gear = RunStats.character_gear[id].duplicate(true)
-		else:
-			RunStats.equipped_gear = {}
+	# 此处不得改动 RunStats.equipped_gear：
+	# 玩家在整备页装配的装备就是本局出战配置，出战确认阶段只做展示与流程推进。
+	# 存档隔离由「新建存档时重置」保证（menu.gd 新建槽 → RunStats.reset_for_new_run），不在这里兜底。
 
 	var modal := Control.new()
 	modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -532,14 +588,25 @@ func _show_challenge_picker() -> void:
 		_deploy_lv_label = Label.new()
 		_deploy_lv_label.text = "装备槽 Lv.%d / 12" % EquipmentManager.get_slot_level()
 		_deploy_lv_label.add_theme_font_size_override("font_size", 16)
-		_deploy_lv_label.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
+		_deploy_lv_label.add_theme_color_override("font_color", UIColors.GRAY)
 		info_bar.add_child(_deploy_lv_label)
 		info_bar.add_child(_spacer(20.0))
+		var dia_box := HBoxContainer.new()
+		dia_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dia_box.add_theme_constant_override("separation", 4)
+		var dia_icon := TextureRect.new()
+		if ResourceLoader.exists("res://Assets/Sprites/UI/Icons/icon_diamond.png"):
+			dia_icon.texture = load("res://Assets/Sprites/UI/Icons/icon_diamond.png")
+		dia_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+		dia_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		dia_icon.custom_minimum_size = Vector2(20.0, 20.0)
+		dia_box.add_child(dia_icon)
 		_deploy_dia_label = Label.new()
-		_deploy_dia_label.text = "💎 %d" % EquipmentManager.get_diamonds()
+		_deploy_dia_label.text = "%d" % EquipmentManager.get_diamonds()
 		_deploy_dia_label.add_theme_font_size_override("font_size", 16)
-		_deploy_dia_label.add_theme_color_override("font_color", Color(0.35, 0.75, 1.0))
-		info_bar.add_child(_deploy_dia_label)
+		_deploy_dia_label.add_theme_color_override("font_color", UIColors.GRAY)
+		dia_box.add_child(_deploy_dia_label)
+		info_bar.add_child(dia_box)
 		info_bar.add_child(_spacer(12.0))
 		_deploy_up_btn = Button.new()
 		_deploy_up_btn.text = "升级"
@@ -599,28 +666,31 @@ func _show_challenge_picker() -> void:
 		stage.add_child(_make_slot(cfg.name, cfg.id, cfg.pos, gear_inst))
 
 	# 4) 底部模式按钮：info_panel 卡片风格（与关卡选择页一致）
-	var endless := _make_mode_card("无尽模式", "无限波次 · 生存挑战", Color(0.55, 1.0, 0.65), func():
-		RunStats.chosen_character = id
+	var endless := _make_mode_card("无尽模式", "无限波次 · 生存挑战", UIColors.WHITE, func():
 		if RunStats != null:
+			RunStats.chosen_character = id
+			RunStats.game_mode = "endless"
 			RunStats.character_gear[id] = RunStats.equipped_gear.duplicate(true)
-		RunStats.deploy_difficulty = 0
+			RunStats.save_character_gear()
+			RunStats.deploy_difficulty = 0
 		get_tree().change_scene_to_file(ENDLESS_SCENE))
 	endless.position = Vector2(130.0, 418.0)
 	stage.add_child(endless)
-	var levels := _make_mode_card("关卡模式", "目标挑战 · 解锁关卡", Color(0.65, 0.60, 1.0), func():
+	var levels := _make_mode_card("关卡模式", "目标挑战 · 解锁关卡", UIColors.WHITE, func():
 		RunStats.chosen_character = id
 		if RunStats != null:
 			RunStats.character_gear[id] = RunStats.equipped_gear.duplicate(true)
+			RunStats.save_character_gear()
 		RunStats.game_mode = "level"
 		get_tree().change_scene_to_file("res://Scenes/level_mode.tscn"))
 	levels.position = Vector2(350.0, 418.0)
 	stage.add_child(levels)
 
-	# 5) 重新选择角色
-	var reback := _make_img_button(BTN_DIR + "reselect_char.png", "重新选择角色", func():
+	# 5) 重新选择角色（角色卡面背景，画面居中；尺寸与其它卡面按钮一致，已缩小避免过大）
+	var reback := _make_text_card_button("重新选择角色", func():
 		get_tree().change_scene_to_file("res://Scenes/character_setup.tscn"),
-		Color(0.18, 0.14, 0.22), Color(0.78, 0.45, 0.98), Vector2(269.0, 90.0), 0.68)
-	reback.position = Vector2(251.0, 530.0)
+		UIColors.WHITE, Vector2(240.0, 60.0))
+	reback.position = Vector2((_DEPLOY_STAGE_W - 240.0) * 0.5, 532.0)
 	stage.add_child(reback)
 
 	center.add_child(stage)
@@ -633,7 +703,7 @@ func _refresh_deploy_info() -> void:
 	if _deploy_lv_label != null:
 		_deploy_lv_label.text = "装备槽 Lv.%d / 12" % EquipmentManager.get_slot_level()
 	if _deploy_dia_label != null:
-		_deploy_dia_label.text = "💎 %d" % EquipmentManager.get_diamonds()
+		_deploy_dia_label.text = "%d" % EquipmentManager.get_diamonds()
 	if _deploy_up_btn != null:
 		var up_cost: int = EquipmentManager.get_next_upgrade_cost()
 		if up_cost < 0:
@@ -710,7 +780,7 @@ func _update_slot_visual(slot: Control, slot_id: String, gear_inst: Dictionary) 
 			if lb != null:
 				lb.text = "🔒"
 				lb.visible = true
-				lb.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.6))
+				lb.add_theme_color_override("font_color", UIColors.MUTED)
 		slot.add_theme_stylebox_override("panel", sb)
 		return
 	# —— 已解锁 ——
@@ -751,10 +821,11 @@ func _update_slot_visual(slot: Control, slot_id: String, gear_inst: Dictionary) 
 		if lb != null:
 			lb.text = EquipmentManager.SLOT_NAMES.get(slot_id, slot_id).substr(0, 1) if EquipmentManager != null else slot_id.substr(0, 1)
 			lb.visible = true
-			lb.add_theme_color_override("font_color", Color(0.82, 0.86, 0.92, 0.9))
+			lb.add_theme_color_override("font_color", UIColors.GRAY)
 	slot.add_theme_stylebox_override("panel", sb)
 
 func _on_slot_clicked(slot_id: String) -> void:
+	_hide_gear_tooltip()
 	if EquipmentManager == null or RunStats == null:
 		return
 	if not EquipmentManager.is_slot_unlocked(slot_id):
@@ -790,6 +861,114 @@ func _card_stylebox() -> StyleBox:
 	fb.set_corner_radius_all(14)
 	return fb
 
+# ===== 道具悬停提示框（鼠标放到装备图标上显示效果）=====
+func _ensure_gear_tooltip() -> void:
+	if _gear_tooltip != null:
+		return
+	_gear_tooltip = PanelContainer.new()
+	_gear_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gear_tooltip.custom_minimum_size = Vector2(240.0, 130.0)
+	# 关键：单独挂在一个高 layer 的 CanvasLayer 上，确保它永远绘制在所有普通 UI（含选择框 modal）之上。
+	# 不能用 top_level=true（会被整页所在的 CanvasLayer 压到下面），也不能只靠兄弟 z_index（Control 上不可靠）。
+	_gear_tooltip.visible = false
+	# 用角色卡面背景（info_panel.png，9 宫格）美化提示框，与全局按钮/卡片风格统一
+	var sb: StyleBox = _card_stylebox()
+	if sb is StyleBoxTexture:
+		sb.content_margin_left = 12.0
+		sb.content_margin_top = 12.0
+		sb.content_margin_right = 12.0
+		sb.content_margin_bottom = 12.0
+	_gear_tooltip.add_theme_stylebox_override("panel", sb)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 6)
+	_gear_tooltip.add_child(vb)
+	_tt_title = Label.new()
+	_tt_title.add_theme_font_size_override("font_size", 16)
+	_tt_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	vb.add_child(_tt_title)
+	_tt_desc = Label.new()
+	_tt_desc.add_theme_font_size_override("font_size", 13)
+	_tt_desc.add_theme_color_override("font_color", UIColors.GRAY)
+	_tt_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tt_desc.custom_minimum_size = Vector2(180.0, 0.0)   # 适配卡面 28px 边框内的内容宽度
+	vb.add_child(_tt_desc)
+	# 单独建一层高 layer 的 CanvasLayer 承载提示框，保证它永远浮在（含 modal 选择框在内的）所有 UI 之上。
+	# CanvasLayer 默认变换即视口坐标，因此下方 _process 用 get_mouse_position() 跟随依然有效。
+	var tip_layer := CanvasLayer.new()
+	tip_layer.name = "GearTooltipLayer"
+	tip_layer.layer = 1000
+	add_child(tip_layer)
+	tip_layer.add_child(_gear_tooltip)
+
+func _build_gear_desc(gear_inst: Dictionary) -> String:
+	if EquipmentManager == null:
+		return ""
+	var stats: Dictionary = EquipmentManager.get_gear_stats(gear_inst)
+	var stats_str := ""
+	for key in stats.keys():
+		var val: float = float(stats[key])
+		var label_name: String = key
+		match key:
+			"atk_bonus": label_name = "攻击力"
+			"max_hp_bonus": label_name = "生命值"
+			"move_speed_bonus": label_name = "移速"
+			"projectile_speed": label_name = "弹速"
+			"def_bonus": label_name = "减伤"
+			"pickup_radius": label_name = "拾取"
+			"exp_bonus": label_name = "经验"
+		if key == "projectile_speed" or key == "def_bonus" or key == "exp_bonus":
+			stats_str += "%s +%.0f%%\n" % [label_name, val * 100]
+		elif key == "pickup_radius":
+			stats_str += "%s +%.0f\n" % [label_name, val]
+		else:
+			stats_str += "%s +%.0f\n" % [label_name, val]
+	var def: Dictionary = EquipmentManager.get_gear_def(gear_inst.get("def_id", ""))
+	var flavor: String = def.get("flavor", "")
+	var lines := ""
+	if stats_str != "":
+		lines += stats_str.strip_edges() + "\n"
+	if flavor != "":
+		lines += "\"%s\"" % flavor
+	return lines
+
+func _show_gear_tooltip(gear_inst: Dictionary, anchor: Control = null) -> void:
+	if gear_inst.is_empty() or EquipmentManager == null:
+		return
+	_ensure_gear_tooltip()
+	var def: Dictionary = EquipmentManager.get_gear_def(gear_inst.get("def_id", ""))
+	_tt_title.text = def.get("name", gear_inst.get("def_id", "?"))
+	_tt_title.add_theme_color_override("font_color", EquipmentManager.get_rarity_color(gear_inst.get("rarity", 1)))
+	_tt_desc.text = _build_gear_desc(gear_inst)
+	_gear_tooltip.visible = true
+	# 固定锚定到【装备外侧、与装备竖向居中】，不随指针移动。
+	# 以视口中线为界：装备在左半屏 → 信息框贴其左侧（朝屏幕外）；在右半屏 → 贴右侧。
+	# 这样信息框朝屏幕边缘延伸，物理上不会压到同列其它装备槽，也不会盖住中间角色卡。
+	var vp := get_viewport_rect().size
+	var tsz := _gear_tooltip.custom_minimum_size   # 内容固定尺寸（240×130），以最小值为基准定位更稳定
+	var pos: Vector2
+	var gap: float = 12.0
+	if anchor != null:
+		var ar: Rect2 = anchor.get_global_rect()
+		var acx: float = ar.position.x + ar.size.x * 0.5
+		if acx < vp.x * 0.5:
+			pos = Vector2(ar.position.x - tsz.x - gap, ar.position.y + ar.size.y * 0.5 - tsz.y * 0.5)   # 贴左（朝外）
+		else:
+			pos = Vector2(ar.position.x + ar.size.x + gap, ar.position.y + ar.size.y * 0.5 - tsz.y * 0.5)   # 贴右（朝外）
+		# 仅当所选侧超出视口时才翻到另一侧（此时才允许进入中间区域）
+		if pos.x < 8.0:
+			pos.x = ar.position.x + ar.size.x + gap
+		elif pos.x + tsz.x > vp.x - 8.0:
+			pos.x = ar.position.x - tsz.x - gap
+	else:
+		pos = Vector2(vp.x - tsz.x - 24.0, vp.y * 0.5 - tsz.y * 0.5)
+	pos.x = clamp(pos.x, 8.0, vp.x - tsz.x - 8.0)
+	pos.y = clamp(pos.y, 8.0, vp.y - tsz.y - 8.0)
+	_gear_tt_pos = pos
+
+func _hide_gear_tooltip() -> void:
+	if _gear_tooltip != null:
+		_gear_tooltip.visible = false
+
 func _show_gear_detail_panel(slot_id: String, gear_inst: Dictionary) -> void:
 	var modal := Control.new()
 	modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -818,14 +997,9 @@ func _show_gear_detail_panel(slot_id: String, gear_inst: Dictionary) -> void:
 	if EquipmentManager != null:
 		col = EquipmentManager.get_rarity_color(rarity)
 
-	var icon_path: String = GEAR_ICON_DIR + def_id + ".png"
-	var icon := TextureRect.new()
-	icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.custom_minimum_size = Vector2(80.0, 80.0)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if ResourceLoader.exists(icon_path):
-		icon.texture = load(icon_path)
+	# 装备详情：无 Gear 素材时同样用槽位徽章代替空白图
+	var icon: Control = _make_gear_icon(def_id, rarity, 80.0)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(icon)
 	var title := Label.new()
 	title.text = def.get("name", def_id)
@@ -858,14 +1032,14 @@ func _show_gear_detail_panel(slot_id: String, gear_inst: Dictionary) -> void:
 		st.text = stats_str.strip_edges()
 		st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		st.add_theme_font_size_override("font_size", 15)
-		st.add_theme_color_override("font_color", Color(0.92, 0.94, 0.98))
+		st.add_theme_color_override("font_color", UIColors.WHITE)
 		v.add_child(st)
 
 	var flavor := Label.new()
 	flavor.text = "\"%s\"" % def.get("flavor", "")
 	flavor.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	flavor.add_theme_font_size_override("font_size", 13)
-	flavor.add_theme_color_override("font_color", Color(0.6, 0.62, 0.65))
+	flavor.add_theme_color_override("font_color", UIColors.MUTED)
 	v.add_child(flavor)
 
 	var btn_row := HBoxContainer.new()
@@ -876,6 +1050,7 @@ func _show_gear_detail_panel(slot_id: String, gear_inst: Dictionary) -> void:
 	replace_btn.text = "替换"
 	replace_btn.custom_minimum_size = Vector2(100.0, 36.0)
 	replace_btn.pressed.connect(func():
+		_hide_gear_tooltip()
 		modal.queue_free()
 		_show_gear_pick_panel(slot_id)
 	)
@@ -884,6 +1059,7 @@ func _show_gear_detail_panel(slot_id: String, gear_inst: Dictionary) -> void:
 	remove_btn.text = "卸下"
 	remove_btn.custom_minimum_size = Vector2(100.0, 36.0)
 	remove_btn.pressed.connect(func():
+		_hide_gear_tooltip()
 		RunStats.equipped_gear.erase(slot_id)
 		_refresh_deploy_slots()
 		modal.queue_free()
@@ -892,7 +1068,10 @@ func _show_gear_detail_panel(slot_id: String, gear_inst: Dictionary) -> void:
 	var close_btn := Button.new()
 	close_btn.text = "关闭"
 	close_btn.custom_minimum_size = Vector2(100.0, 36.0)
-	close_btn.pressed.connect(func(): modal.queue_free())
+	close_btn.pressed.connect(func():
+		_hide_gear_tooltip()
+		modal.queue_free()
+	)
 	btn_row.add_child(close_btn)
 
 func _show_gear_pick_panel(slot_id: String) -> void:
@@ -940,7 +1119,7 @@ func _show_gear_pick_panel(slot_id: String) -> void:
 	title.text = "选择一件%s" % EquipmentManager.SLOT_NAMES.get(slot_id, slot_id)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
+	title.add_theme_color_override("font_color", UIColors.GRAY)
 	v.add_child(title)
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -956,14 +1135,9 @@ func _show_gear_pick_panel(slot_id: String) -> void:
 		bvb.add_theme_constant_override("separation", 6)
 		bvb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		btn.add_child(bvb)
-		var icon_path: String = GEAR_ICON_DIR + opt.get("def_id", "") + ".png"
-		var icon := TextureRect.new()
-		icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.custom_minimum_size = Vector2(72.0, 72.0)
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if ResourceLoader.exists(icon_path):
-			icon.texture = load(icon_path)
+		# 无 Gear 素材时不再留一块 72×72 空白，改用槽位徽章占位
+		var icon: Control = _make_gear_icon(str(opt.get("def_id", "")), int(opt.get("rarity", 1)), 72.0)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		bvb.add_child(icon)
 		var nm := Label.new()
 		nm.text = def.get("name", "?")
@@ -983,15 +1157,21 @@ func _show_gear_pick_panel(slot_id: String) -> void:
 		bsb_h.bg_color = Color(0.18, 0.24, 0.32)
 		btn.add_theme_stylebox_override("hover", bsb_h)
 		btn.pressed.connect(func():
+			_hide_gear_tooltip()
 			RunStats.equipped_gear[slot_id] = opt
 			_refresh_deploy_slots()
 			modal.queue_free()
 		)
+		btn.mouse_entered.connect(func(): _show_gear_tooltip(opt, btn))
+		btn.mouse_exited.connect(func(): _hide_gear_tooltip())
 		btn_row.add_child(btn)
 	var close_btn := Button.new()
 	close_btn.text = "取消"
 	close_btn.custom_minimum_size = Vector2(100.0, 32.0)
-	close_btn.pressed.connect(func(): modal.queue_free())
+	close_btn.pressed.connect(func():
+		_hide_gear_tooltip()
+		modal.queue_free()
+	)
 	v.add_child(close_btn)
 
 # 出战页角色卡：复用选择页素材（info_panel 背板 + idle 帧立绘 + name/wp 文字块图），仅尺寸更小
@@ -1133,11 +1313,11 @@ func _make_slot(name: String, id: String, pos: Vector2, gear_inst: Dictionary = 
 	lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lb.add_theme_font_size_override("font_size", 15)
 	if not is_unlocked:
-		lb.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.6))
+		lb.add_theme_color_override("font_color", UIColors.MUTED)
 	elif not gear_inst.is_empty():
 		lb.add_theme_color_override("font_color", col)
 	else:
-		lb.add_theme_color_override("font_color", Color(0.82, 0.86, 0.92, 0.9))
+		lb.add_theme_color_override("font_color", UIColors.GRAY)
 	lb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if art.visible:
@@ -1156,6 +1336,9 @@ func _make_slot(name: String, id: String, pos: Vector2, gear_inst: Dictionary = 
 	hit.add_theme_stylebox_override("pressed", empty)
 	hit.add_theme_stylebox_override("focus", empty)
 	hit.pressed.connect(func(): _on_slot_clicked(id))
+	if not gear_inst.is_empty():
+		hit.mouse_entered.connect(func(): _show_gear_tooltip(gear_inst, hit))
+		hit.mouse_exited.connect(func(): _hide_gear_tooltip())
 	slot.add_child(hit)
 	# 统一用 _update_slot_visual 初始化外观：未解锁槽立即显示 lock.png 美术素材，
 	# 而非默认 emoji —— 避免出现「进页面是 emoji、选完符文刷新后才变 lock.png」的不一致
@@ -1189,7 +1372,7 @@ func _make_mode_card(title: String, desc: String, accent: Color, cb: Callable) -
 	t.text = title
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.add_theme_font_size_override("font_size", 24)
-	t.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	t.add_theme_color_override("font_color", UIColors.GOLD)
 	vbox.add_child(t)
 
 	var d := Label.new()
@@ -1197,7 +1380,7 @@ func _make_mode_card(title: String, desc: String, accent: Color, cb: Callable) -
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	d.add_theme_font_size_override("font_size", 14)
-	d.add_theme_color_override("font_color", Color(0.82, 0.86, 0.92))
+	d.add_theme_color_override("font_color", UIColors.GRAY)
 	vbox.add_child(d)
 
 	var hit := Button.new()
@@ -1306,13 +1489,13 @@ func _show_synthesis_panel() -> void:
 	title.text = "装备合成"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	title.add_theme_color_override("font_color", UIColors.GOLD)
 	vbox.add_child(title)
 	var hint := Label.new()
 	hint.text = "点击高亮装备进行升星"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 14)
-	hint.add_theme_color_override("font_color", Color(0.7, 0.74, 0.82))
+	hint.add_theme_color_override("font_color", UIColors.GRAY)
 	vbox.add_child(hint)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1334,7 +1517,7 @@ func _show_synthesis_panel() -> void:
 		var can_synth: bool = same.size() >= 2 and rarity < EquipmentManager.MAX_RARITY
 
 		var cell := Button.new()
-		cell.custom_minimum_size = Vector2(96.0, 84.0)
+		cell.custom_minimum_size = Vector2(96.0, 116.0)   # 加高以容纳装备图标
 		var col: Color = EquipmentManager.get_rarity_color(rarity)
 		var csb := StyleBoxFlat.new()
 		csb.bg_color = Color(0.06, 0.08, 0.12, 0.85)
@@ -1360,11 +1543,17 @@ func _show_synthesis_panel() -> void:
 		cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cell.add_child(cv)
 
+		# 装备图标（有素材用素材，无素材用槽位徽章）——玩家不必再靠名字辨认
+		var cicon: Control = _make_gear_icon(def_id, rarity, 38.0)
+		cicon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		cv.add_child(cicon)
+
 		var name_lbl := Label.new()
 		name_lbl.text = def.get("name", def_id).substr(0, 4)
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.add_theme_font_size_override("font_size", 13)
 		name_lbl.add_theme_color_override("font_color", col)
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cv.add_child(name_lbl)
 
 		var star_lbl := Label.new()
@@ -1383,7 +1572,7 @@ func _show_synthesis_panel() -> void:
 		slot_lbl.text = EquipmentManager.SLOT_NAMES.get(def.get("slot", ""), "")
 		slot_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slot_lbl.add_theme_font_size_override("font_size", 11)
-		slot_lbl.add_theme_color_override("font_color", Color(0.6, 0.64, 0.72))
+		slot_lbl.add_theme_color_override("font_color", UIColors.GRAY)
 		cv.add_child(slot_lbl)
 
 		if can_synth:
@@ -1399,11 +1588,22 @@ func _show_synthesis_panel() -> void:
 	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	bottom_row.add_theme_constant_override("separation", 16)
 	vbox.add_child(bottom_row)
+	var dia_hb := HBoxContainer.new()
+	dia_hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dia_hb.add_theme_constant_override("separation", 4)
+	var dia_tex := TextureRect.new()
+	if ResourceLoader.exists("res://Assets/Sprites/UI/Icons/icon_diamond.png"):
+		dia_tex.texture = load("res://Assets/Sprites/UI/Icons/icon_diamond.png")
+	dia_tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+	dia_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	dia_tex.custom_minimum_size = Vector2(20.0, 20.0)
+	dia_hb.add_child(dia_tex)
 	var dia_lbl := Label.new()
-	dia_lbl.text = "💎 %d" % EquipmentManager.get_diamonds()
+	dia_lbl.text = "%d" % EquipmentManager.get_diamonds()
 	dia_lbl.add_theme_font_size_override("font_size", 16)
-	dia_lbl.add_theme_color_override("font_color", Color(0.35, 0.75, 1.0))
-	bottom_row.add_child(dia_lbl)
+	dia_lbl.add_theme_color_override("font_color", UIColors.GRAY)
+	dia_hb.add_child(dia_lbl)
+	bottom_row.add_child(dia_hb)
 	var buy_inner := Button.new()
 	buy_inner.text = "购买随机装备(%d💎)" % EquipmentManager.BUY_GEAR_COST
 	buy_inner.custom_minimum_size = Vector2(180.0, 32.0)
@@ -1411,7 +1611,7 @@ func _show_synthesis_panel() -> void:
 	buy_inner.pressed.connect(func():
 		var _r: Dictionary = EquipmentManager.buy_random_gear("")
 		_refresh_deploy_info()
-		dia_lbl.text = "💎 %d" % EquipmentManager.get_diamonds()
+		dia_lbl.text = "%d" % EquipmentManager.get_diamonds()
 		buy_inner.disabled = EquipmentManager.get_diamonds() < EquipmentManager.BUY_GEAR_COST
 		modal.queue_free()
 		_show_synthesis_panel()
@@ -1467,7 +1667,7 @@ func _show_synth_confirm(parent_modal: Control, base_uid: String, fodder_uid: St
 	t.text = "确认合成"
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.add_theme_font_size_override("font_size", 22)
-	t.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	t.add_theme_color_override("font_color", UIColors.GOLD)
 	v.add_child(t)
 	var formula := Label.new()
 	formula.text = "%s ★%d  +  %s ★%d" % [def.get("name"), rarity, def.get("name"), rarity]
@@ -1530,6 +1730,31 @@ func _make_back() -> Button:
 	b.pressed.connect(_on_back)
 	return b
 
+# 文字卡面按钮：系统字体 + 角色卡面背景（info_panel.png），用于确认出战/返回主菜单/重新选择角色等
+func _make_text_card_button(text: String, cb: Callable, accent: Color, min_size: Vector2 = Vector2(240.0, 64.0)) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = min_size
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", 26)
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(CARD_BACK_TEX)
+	sb.texture_margin_left = 28.0
+	sb.texture_margin_top = 28.0
+	sb.texture_margin_right = 28.0
+	sb.texture_margin_bottom = 28.0
+	b.add_theme_stylebox_override("normal", sb)
+	var sbh := sb.duplicate()
+	sbh.modulate_color = Color(1.15, 1.15, 1.2)
+	b.add_theme_stylebox_override("hover", sbh)
+	var sbp := sbh.duplicate()
+	b.add_theme_stylebox_override("pressed", sbp)
+	b.add_theme_color_override("font_color", accent)
+	b.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	b.add_theme_constant_override("outline_size", 3)
+	b.pressed.connect(cb)
+	return b
+
 # 预渲染按钮：有图用 TextureButton（静态图，按下时轻微变暗反馈），缺图回退到文字按钮
 # overlay_text：可选叠加文字（用于纯底图+自定义文字的情况，如关卡模式用 btn_base.png 复用无尽模式底图）
 func _make_img_button(tex_path: String, text: String, cb: Callable, normal_col: Color, border_col: Color, min_size: Vector2 = Vector2(240.0, 64.0), scale_factor: float = 1.0, overlay_text: String = "") -> Control:
@@ -1560,7 +1785,7 @@ func _make_img_button(tex_path: String, text: String, cb: Callable, normal_col: 
 			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			label.set_anchors_preset(Control.PRESET_FULL_RECT)
 			label.add_theme_font_size_override("font_size", 32)
-			label.add_theme_color_override("font_color", Color(0.95, 0.88, 0.72))
+			label.add_theme_color_override("font_color", UIColors.GOLD)
 			label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 			label.add_theme_constant_override("outline_size", 4)
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1604,7 +1829,7 @@ func _make_img_button(tex_path: String, text: String, cb: Callable, normal_col: 
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	label.add_theme_font_size_override("font_size", 28)
-	label.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
+	label.add_theme_color_override("font_color", UIColors.GOLD)
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	label.add_theme_constant_override("outline_size", 4)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1637,12 +1862,12 @@ func _make_img_button(tex_path: String, text: String, cb: Callable, normal_col: 
 	hit.mouse_entered.connect(func():
 		var tw := create_tween()
 		tw.tween_property(glow, "modulate:a", 0.6, 0.15)
-		label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.85))
+		label.add_theme_color_override("font_color", UIColors.GOLD)
 	)
 	hit.mouse_exited.connect(func():
 		var tw := create_tween()
 		tw.tween_property(glow, "modulate:a", 0.0, 0.20)
-		label.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
+		label.add_theme_color_override("font_color", UIColors.GOLD)
 	)
 	hit.button_down.connect(func():
 		container.scale = Vector2(0.96, 0.96)
@@ -1819,7 +2044,7 @@ func _make_title_styled(text: String, fnt: Font) -> Control:
 	body_t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body_t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	body_t.add_theme_font_size_override("font_size", 74.0)
-	body_t.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
+	body_t.add_theme_color_override("font_color", UIColors.GOLD)
 	body_t.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
 	body_t.add_theme_constant_override("outline_size", 4)
 	if fnt != null:
@@ -1835,3 +2060,44 @@ func _load_font() -> Font:
 			if f is Font:
 				return f
 	return null
+
+# ===== 装备图标 =====
+# 统一入口：优先加载真实素材 Assets/Sprites/UI/Gear/<def_id>.png；
+# 没有素材时程序化生成一枚徽章（槽位汉字 + 稀有度配色描边），
+# 保证合成页 / 装配页在缺素材时也能看图辨认，而不是只能读名字。
+func _make_gear_icon(def_id: String, rarity: int, px: float) -> Control:
+	var icon_path: String = GEAR_ICON_DIR + def_id + ".png"
+	if ResourceLoader.exists(icon_path):
+		var tr := TextureRect.new()
+		tr.texture = load(icon_path)
+		tr.custom_minimum_size = Vector2(px, px)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return tr
+	var col: Color = Color(0.80, 0.84, 0.90)
+	var slot_id: String = ""
+	if EquipmentManager != null:
+		col = EquipmentManager.get_rarity_color(rarity)
+		slot_id = EquipmentManager.get_gear_slot(def_id)
+	var badge := Panel.new()
+	badge.custom_minimum_size = Vector2(px, px)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(col.r * 0.20, col.g * 0.20, col.b * 0.20, 0.95)
+	sb.border_color = col
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(int(px * 0.28))
+	badge.add_theme_stylebox_override("panel", sb)
+	var glyph := Label.new()
+	glyph.text = str(SLOT_GLYPHS.get(slot_id, "装"))
+	glyph.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	glyph.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	glyph.add_theme_font_size_override("font_size", int(px * 0.52))
+	glyph.add_theme_color_override("font_color", col)
+	glyph.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	glyph.add_theme_constant_override("outline_size", 3)
+	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(glyph)
+	return badge

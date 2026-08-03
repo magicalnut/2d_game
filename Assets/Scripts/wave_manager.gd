@@ -90,6 +90,7 @@ enum State { INTERMISSION, FIGHTING, VICTORY, BOSS_FIGHT }
 signal special_choice_ready
 signal stage_spawn_done  # 关卡模式：当前阶段敌人已全部生成完毕
 var _state: int = State.INTERMISSION
+var skip_reset: bool = false
 var _wave_index: int = -1
 var _endless: bool = false          # 第5波清完后进入无尽模式（持续刷最后一波）
 var _timer: float = 0.0
@@ -126,17 +127,23 @@ func _ensure_fresh_scene() -> void:
 	if cs != _last_scene:
 		_last_scene = cs
 		if cs != null and cs.name == "Main":
+			if skip_reset:
+				skip_reset = false
+				return
 			_wave_index = -1
+			# 关键：以下累计量原本漏重置，导致「新开一局却继承上一局的层数/波数/难度」——
+			# 新档一进场就是「无尽 · 第 N 层」、难度倍率残留，玩家瞬间被秒。必须一并清零。
 			_endless_stage = 0
 			_endless_wave_count = 0
 			_waves_cleared = 0
-			_run_time = 0.0
 			_boss_defeat_count = 0
-			_last_boss_index = -1
-			_current_stage_config.clear()
+			_run_time = 0.0
 			_level_stage_repeating = false
 			_boss_rush_timer = 0.0
 			_boss_rush_boss_phase = false
+			_current_stage_config = {}
+			if RunStats != null:
+				RunStats.last_wave_reached = 0
 			var is_level: bool = RunStats != null and RunStats.game_mode == "level"
 			if is_level:
 				level_mode_active = true
@@ -325,12 +332,16 @@ func _on_wave_cleared() -> void:
 # 进入 BOSS 战：刷出 BOSS，切到 BOSS_FIGHT 状态，专心等它被击败
 func _enter_boss_fight() -> void:
 	_state = State.BOSS_FIGHT
+	if AudioManager != null:
+		AudioManager.play_boss_music()
 	_spawn_boss()
 
 # BOSS 被击败：给一次特殊技能选择，然后继续下一波（无尽间歇）
 func _on_boss_defeated() -> void:
 	_boss_defeat_count += 1
 	emit_signal("special_choice_ready")
+	if AudioManager != null:
+		AudioManager.stop_boss_music()
 	if level_mode_active:
 		# BOSS连战：击败一只后刷下一只
 		if _boss_rush_active:
@@ -493,7 +504,7 @@ func _spawn_boss() -> void:
 	if scene_root == null:
 		return
 	scene_root.add_child(e)
-	_show_banner("⚠ %s 降临 ⚠" % d["name"], 2.2)
+	# boss 名字改由 HUD 顶部 _boss_label 显示，不再单独弹横幅（避免与顶部重复）
 
 # BOSS 召唤小怪：在 center 周围环形生成 n 只随机普通敌人（阶段2+使用）
 func spawn_minions(center: Vector2, n: int) -> void:
@@ -710,3 +721,61 @@ func _restart_level_stage() -> void:
 	if _current_stage_config.is_empty():
 		return
 	_setup_level_stage_groups(_current_stage_config)
+
+func export_state() -> Dictionary:
+	var groups_out: Array = []
+	for g in _groups:
+		groups_out.append({
+			"kind": g["kind"],
+			"remaining": g["remaining"],
+			"interval": g["interval"],
+			"timer": g["timer"],
+		})
+	return {
+		"state": _state,
+		"wave_index": _wave_index,
+		"endless": _endless,
+		"endless_stage": _endless_stage,
+		"endless_wave_count": _endless_wave_count,
+		"waves_cleared": _waves_cleared,
+		"run_time": _run_time,
+		"difficulty": _difficulty,
+		"max_alive": _max_alive,
+		"boss_defeat_count": _boss_defeat_count,
+		"last_boss_index": _last_boss_index,
+		"groups": groups_out,
+		"level_mode_active": level_mode_active,
+		"current_stage_config": _current_stage_config.duplicate(true),
+		"level_stage_repeating": _level_stage_repeating,
+		"timer": _timer,
+		"wave_info": get_wave_label(),
+	}
+
+func restore_state(data: Dictionary) -> void:
+	_state = data.get("state", State.INTERMISSION)
+	if _state == State.BOSS_FIGHT or _state == State.VICTORY:
+		_state = State.INTERMISSION
+		_timer = 1.0
+	_wave_index = data.get("wave_index", -1)
+	_endless = data.get("endless", true)
+	_endless_stage = data.get("endless_stage", 0)
+	_endless_wave_count = data.get("endless_wave_count", 0)
+	_waves_cleared = data.get("waves_cleared", 0)
+	_run_time = data.get("run_time", 0.0)
+	_difficulty = data.get("difficulty", 1.0)
+	_max_alive = data.get("max_alive", 60)
+	_boss_defeat_count = data.get("boss_defeat_count", 0)
+	_last_boss_index = data.get("last_boss_index", -1)
+	level_mode_active = data.get("level_mode_active", false)
+	_current_stage_config = data.get("current_stage_config", {}).duplicate(true)
+	_level_stage_repeating = data.get("level_stage_repeating", false)
+	_timer = data.get("timer", 0.0)
+	var saved_groups: Array = data.get("groups", [])
+	_groups.clear()
+	for g in saved_groups:
+		_groups.append({
+			"kind": g.get("kind", "fox"),
+			"remaining": g.get("remaining", 0),
+			"interval": g.get("interval", 0.5),
+			"timer": g.get("timer", 0.0),
+		})

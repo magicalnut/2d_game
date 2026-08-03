@@ -1,10 +1,12 @@
 extends CanvasLayer
 
 ## 死亡结算屏（CanvasLayer，挂于 Main 下）。
-## 玩家死亡时由 main.gd 调用 show_game_over()：暂停游戏并展示本局统计，
-## 提供「重新开始（重载当前场景）」与「返回主菜单」。
+## 玩家死亡/关卡结束/关卡失败时由 main.gd 调用对应 show_*()：暂停游戏并展示本局统计，
+## 提供「返回上一页（回战备整备页）」与「返回主菜单」。
 
 const MENU_SCENE := "res://Scenes/menu.tscn"
+const SETUP_SCENE := "res://Scenes/character_setup.tscn"
+const CARD_BACK_TEX := "res://Assets/Sprites/UI/info_panel.png"   # 角色卡面背景（与全局按钮统一）
 
 var _overlay: Control
 var _stats_label: Label
@@ -49,7 +51,7 @@ func _build() -> void:
 	_title.text = "你 倒 下 了"
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.add_theme_font_size_override("font_size", 56)
-	_title.add_theme_color_override("font_color", Color(1.0, 0.45, 0.42))
+	_title.add_theme_color_override("font_color", UIColors.GOLD)
 	_title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_title.add_theme_constant_override("outline_size", 5)
 
@@ -57,7 +59,7 @@ func _build() -> void:
 	vbox.add_child(_stats_label)
 	_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_stats_label.add_theme_font_size_override("font_size", 24)
-	_stats_label.add_theme_color_override("font_color", Color(0.92, 0.94, 0.98))
+	_stats_label.add_theme_color_override("font_color", UIColors.WHITE)
 	_stats_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_stats_label.add_theme_constant_override("outline_size", 3)
 
@@ -68,8 +70,39 @@ func _build() -> void:
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	hbox.add_theme_constant_override("separation", 24)
 
-	hbox.add_child(_make_button("重新开始", _on_restart, Color(0.20, 0.45, 0.30)))
-	hbox.add_child(_make_button("返回主菜单", _on_menu, Color(0.20, 0.18, 0.30)))
+	hbox.add_child(_make_button("返回上一页", _on_back_to_setup, UIColors.WHITE))
+	hbox.add_child(_make_button("返回主菜单", _on_menu, UIColors.WHITE))
+
+# 本局结束（阵亡 / 关卡通关 / 关卡失败）：把当前存档槽固化为「养成存档」。
+# 钻石、仓库、槽位等级、出战配装随档保留；中途快照被清除（本局已结束，不可读回死前局面）；
+# 并补写 meta —— 缺 meta 时主菜单会把该槽判为「（空）」且禁用，玩家读不到自己攒下的养成，
+# 还会误当空槽新建从而被 clear_slot 抹掉，那才是真正的「白打」。
+# 注意：此处不再写全局 character_gear（跨槽共享会污染其它存档，且它已无任何读取点）。
+func _finalize_slot(wave_info: String) -> void:
+	if SaveManager == null or SaveManager.active_slot < 0:
+		return
+	var gear_snapshot: Dictionary = {}
+	var mode_str: String = ""
+	var char_str: String = ""
+	var diff_val: int = 0
+	var time_val: float = 0.0
+	var kill_val: int = 0
+	if RunStats != null:
+		gear_snapshot = RunStats.equipped_gear.duplicate(true)
+		mode_str = RunStats.game_mode
+		char_str = RunStats.chosen_character
+		diff_val = RunStats.deploy_difficulty
+		time_val = RunStats.time_survived
+		kill_val = RunStats.kills
+	SaveManager.finalize_run_slot(SaveManager.active_slot, {
+		"mode": mode_str,
+		"character": char_str,
+		"difficulty": diff_val,
+		"wave_info": wave_info,
+		"kills": kill_val,
+		"time_survived": time_val,
+		"equipped_gear": gear_snapshot,
+	})
 
 func show_game_over() -> void:
 	if _level_complete:
@@ -87,11 +120,17 @@ func show_game_over() -> void:
 		kills = RunStats.kills
 		wave = RunStats.last_wave_reached
 
-	# 计算并发放钻石
+	# 计算并发放钻石：波次/击杀的「待结算」部分此刻入账；
+	# 局内即时到手的部分（装备分解等）在获得当时已入账，这里只并入展示口径，不重复发放。
 	var diamonds_earned: int = 0
 	if EquipmentManager != null:
-		diamonds_earned = EquipmentManager.calculate_run_diamonds(wave, kills)
-		EquipmentManager.add_diamonds(diamonds_earned)
+		var pending: int = EquipmentManager.calculate_run_diamonds(wave, kills)
+		EquipmentManager.add_diamonds(pending)
+		diamonds_earned = pending
+		if RunStats != null:
+			# extra_diamonds 在获得当时已通过 EquipmentManager.add_diamonds 入账，
+			# 这里只并入展示口径，避免重复发放。
+			diamonds_earned += RunStats.extra_diamonds   # 与 HUD 显示的本局收益保持一致
 
 	# 局终装备掉落：≥3波掉一件白色装备到仓库
 	if EquipmentManager != null and wave >= 3:
@@ -100,17 +139,17 @@ func show_game_over() -> void:
 		if not drop.is_empty():
 			EquipmentManager.add_to_inventory(drop)
 
-	# 保存本局装备到角色专属配置
-	if RunStats != null:
-		RunStats.character_gear[RunStats.chosen_character] = RunStats.equipped_gear.duplicate(true)
+	_finalize_slot("阵亡 · 最高 %d 波" % wave)
 
 	_stats_label.text = "存活时间  %s\n到达等级  Lv.%d\n击杀敌人  %d\n到达波次  %d\n获得钻石  +%d" % [tstr, lvl, kills, wave, diamonds_earned]
 	_overlay.visible = true
-	get_tree().paused = true
+	var t := get_tree()
+	if t != null:
+		t.paused = true
 
 func show_level_complete(level_data: LevelData) -> void:
 	_title.text = "关卡完成"
-	_title.add_theme_color_override("font_color", Color(0.45, 1.0, 0.55))
+	_title.add_theme_color_override("font_color", UIColors.GOLD)
 
 	var completed_before: bool = false
 	if RunStats != null:
@@ -130,7 +169,6 @@ func show_level_complete(level_data: LevelData) -> void:
 			var slot: String = EquipmentManager.get_gear_slot(gear_id)
 			if RunStats != null:
 				RunStats.equipped_gear[slot] = gear_inst
-				RunStats.character_gear[RunStats.chosen_character] = RunStats.equipped_gear.duplicate(true)
 			reward_text += "首通奖励  %s\n" % EquipmentManager.get_gear_name(gear_id)
 
 	if RunStats != null:
@@ -142,17 +180,20 @@ func show_level_complete(level_data: LevelData) -> void:
 		tstr = RunStats.get_time_string()
 		kills = RunStats.kills
 
+	_finalize_slot("通关 · %s" % level_data.display_name)
+
 	_stats_label.text = "关卡  %s\n存活时间  %s\n击杀敌人  %d\n%s" % [level_data.display_name, tstr, kills, reward_text]
 	if RunStats != null and RunStats.crystal_hp_ratio >= 0.0:
 		var stars: String = _calc_stars(RunStats.crystal_hp_ratio)
 		_stats_label.text += "评级  %s\n" % stars
 	_overlay.visible = true
-	get_tree().paused = true
-
+	var t := get_tree()
+	if t != null:
+		t.paused = true
 
 func show_level_failed(reason: String) -> void:
 	_title.text = "关卡失败"
-	_title.add_theme_color_override("font_color", Color(1.0, 0.45, 0.42))
+	_title.add_theme_color_override("font_color", UIColors.GOLD)
 
 	var reason_text: String = ""
 	match reason:
@@ -166,20 +207,44 @@ func show_level_failed(reason: String) -> void:
 		tstr = RunStats.get_time_string()
 		kills = RunStats.kills
 
+	_finalize_slot("关卡失败 · %s" % reason_text)
+
 	_stats_label.text = "关卡失败  %s\n存活时间  %s\n击杀敌人  %d" % [reason_text, tstr, kills]
 	if RunStats != null and RunStats.crystal_hp_ratio >= 0.0:
 		var stars: String = _calc_stars(RunStats.crystal_hp_ratio)
 		_stats_label.text += "\n评级  %s" % stars
 	_overlay.visible = true
-	get_tree().paused = true
+	var t := get_tree()
+	if t != null:
+		t.paused = true
 
 
-func _on_restart() -> void:
+# 本局结束 → 回战备页（出战整备页，而非重开本局）。局外养成已由 _finalize_slot 固化进当前存档槽，
+# SaveManager.active_slot 保持不变，因此在整备页升级槽位/配装、以及下一局的收益都继续写入同一存档。
+# 设 back_to_loadout 让角色选择页跳过转盘、直接停在战备页，形成「战备↔对局」的局外养成循环。
+func _on_back_to_setup() -> void:
 	_overlay.visible = false
+	# 清掉读档/还原的瞬态标记，避免下一局被误还原成已结束的旧局面
+	if SaveManager != null:
+		SaveManager.pending_restore_slot = -1
+		SaveManager.pending_restore_data = {}
+		# 返回战备页：沿用当前槽与角色，跳过角色转盘
+		if SaveManager.active_slot >= 0:
+			SaveManager.back_to_loadout = true
+			SaveManager.menu_load_slot = SaveManager.active_slot
+		else:
+			SaveManager.menu_load_slot = -1
+	# 不置 skip_reset：让 RunStats / SkillManager / WaveManager 在进入 Main 时自动重置本局状态
+	if RunStats != null:
+		RunStats.skip_reset = false
+	if SkillManager != null:
+		SkillManager.skip_reset = false
+	if WaveManager != null:
+		WaveManager.skip_reset = false
 	var tree := get_tree()
 	if tree != null:
 		tree.paused = false
-		tree.reload_current_scene()
+		tree.change_scene_to_file.call_deferred(SETUP_SCENE)
 
 func _on_menu() -> void:
 	_overlay.visible = false
@@ -231,15 +296,22 @@ func _make_button(text: String, cb: Callable, accent: Color) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(240.0, 64.0)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	b.add_theme_font_size_override("font_size", 26)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = accent
-	sb.border_color = Color(0.9, 0.9, 0.95)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(14)
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(CARD_BACK_TEX)
+	sb.texture_margin_left = 28.0
+	sb.texture_margin_top = 28.0
+	sb.texture_margin_right = 28.0
+	sb.texture_margin_bottom = 28.0
 	b.add_theme_stylebox_override("normal", sb)
 	var sbh := sb.duplicate()
-	sbh.bg_color = accent * 1.3
+	sbh.modulate_color = Color(1.15, 1.15, 1.2)
 	b.add_theme_stylebox_override("hover", sbh)
+	var sbp := sbh.duplicate()
+	b.add_theme_stylebox_override("pressed", sbp)
+	b.add_theme_color_override("font_color", accent)
+	b.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	b.add_theme_constant_override("outline_size", 3)
 	b.pressed.connect(cb)
 	return b

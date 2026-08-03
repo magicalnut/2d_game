@@ -62,9 +62,11 @@ const EVOLVE := {
 }
 
 var owned: Dictionary = {}        # id -> 当前星级(int)
+var skip_reset: bool = false
 var _player: Node2D = null
 var _last_scene: Node = null
 var _pending_apply: bool = false   # 新一局开始，待玩家就绪后授予初始武器+属性
+var _restore_mode: bool = false    # 读档时用 _resync_all 代替 _apply_character
 
 const ACTIVE_SCRIPT := preload("res://Assets/Scripts/active_weapon.gd")
 const SPECIAL_SHIELD_SCRIPT := preload("res://Assets/Scripts/special_shield.gd")
@@ -72,22 +74,28 @@ const SPECIAL_HOURGLASS_SCRIPT := preload("res://Assets/Scripts/special_hourglas
 const SPECIAL_THUNDER_SCRIPT := preload("res://Assets/Scripts/special_thunder.gd")
 
 func _process(delta: float) -> void:
-	# 检测场景重载（玩家死亡重开 / 进入新一局），自动把技能重新应用到新玩家节点
 	var cs: Node = get_tree().current_scene
 	if cs != _last_scene:
 		_last_scene = cs
 		_player = null
 		if cs != null and cs.name == "Main":
-			# 新一局：清空上局技能，按所选角色授予初始武器 + 属性修正
-			owned.clear()
-			_pending_apply = true
+			if skip_reset:
+				skip_reset = false
+				_restore_mode = true
+				_pending_apply = true
+			else:
+				owned.clear()
+				_pending_apply = true
 		else:
 			_player = null
-	# 待玩家节点就绪后，应用本局角色配置（避免玩家 _ready 前就挂武器）
 	if _pending_apply:
 		_ensure_player()
 		if _player != null and _player.is_inside_tree():
-			_apply_character()
+			if _restore_mode:
+				_restore_mode = false
+				_resync_all()
+			else:
+				_apply_character()
 			_pending_apply = false
 
 func _ensure_player() -> void:

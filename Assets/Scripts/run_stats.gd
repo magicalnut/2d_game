@@ -40,7 +40,28 @@ var crystal_hp_ratio: float = -1.0  # 水晶剩余血量比例（-1=无水晶关
 # ===== 装备系统 =====
 var equipped_gear: Dictionary = {}    # 本局携带的装备实例 {slot_id: gear_instance}
 var character_gear: Dictionary = {}  # 角色专属装备配置 {character_id: {slot_id: gear_instance}}
+
+# 新游戏开局装备 = 空。
+# 存档隔离的关键点：新一局绝不读 character_gear / 其它存档槽，也绝不凭空发放装备。
+# 新档状态为 Lv.1 / 0 钻 / 空仓库，仓库里没有的东西自然不该被穿在身上；
+# 装备一律由玩家在局内获取或在整备页从本槽仓库装配，从而不影响角色原有的攻击手感与数值。
+func apply_default_gear() -> void:
+	equipped_gear = {}
 var last_wave_reached: int = 0       # 本局到达的最高波次（用于钻石结算）
+var run_diamonds: int = 0            # 本局已获得钻石（HUD 实时显示，由 refresh_run_diamonds() 汇总）
+var extra_diamonds: int = 0          # 局内即时到手的钻石（装备分解等，已直接入账），只参与 HUD 汇总
+
+# 本局「待结算」钻石：与 EquipmentManager.calculate_run_diamonds 保持同一公式。
+# 提前算出来让 HUD 能实时反映收益，而不是等到死亡结算才一次性跳数字。
+func get_pending_diamonds() -> int:
+	# 复用结算同一函数，避免 HUD 预估与死亡结算两套公式漂移导致数字跳变
+	if EquipmentManager != null:
+		return EquipmentManager.calculate_run_diamonds(last_wave_reached, kills)
+	return int(last_wave_reached * 10 + kills * 0.5)
+
+# HUD 显示值 = 待结算（波次 / 击杀） + 已即时到手（分解等）
+func refresh_run_diamonds() -> void:
+	run_diamonds = get_pending_diamonds() + extra_diamonds
 
 # 难度基础偏移：作为 wave_manager 难度倍率公式的常数项，让手动难度真正生效
 func get_difficulty_base() -> float:
@@ -52,31 +73,61 @@ func get_difficulty_base() -> float:
 
 # BOSS 引用：由 enemy(boss=true) 在 _ready 时写入、_die 时清空；HUD 读其血量显示 BOSS 血条
 var boss_ref: Node2D = null
+var skip_reset: bool = false
 
 var _last_scene: Node = null
 
 func _ready() -> void:
-	_load_level_progress()
+	_sync_from_save_manager()
+	if SaveManager != null:
+		SaveManager.save_loaded.connect(_sync_from_save_manager)
+
+func _sync_from_save_manager() -> void:
+	if SaveManager == null:
+		return
+	completed_levels = SaveManager.completed_levels.duplicate()
+	unlocked_levels = SaveManager.unlocked_levels.duplicate()
 
 func _process(delta: float) -> void:
 	var cs: Node = get_tree().current_scene
 	if cs != _last_scene:
 		_last_scene = cs
-		# 进入战斗场景（根节点名为 Main）即新一局：重置统计
 		if cs != null and cs.name == "Main":
-			_reset()
+			if skip_reset:
+				skip_reset = false
+			else:
+				_reset()
 		else:
 			boss_ref = null
 	# 仅在战斗中累计时间（进入 Main 后；暂停时本节点不跑，自然冻结）
 	if _last_scene != null and _last_scene.name == "Main":
 		time_survived += delta
+		refresh_run_diamonds()   # HUD 钻石实时增长（原先只在死亡结算时才加，局内恒显 0）
 
 func _reset() -> void:
 	time_survived = 0.0
 	kills = 0
-	crystal_hp_ratio = -1.0
+	run_diamonds = 0
+	extra_diamonds = 0
+	last_wave_reached = 0
 	# boss_ref 不由 _reset 清空：防止 _process(_reset) 覆盖 boss._ready() 已设的引用
 	# boss_ref 在离开 Main 时由 _process() else 分支清空，或在 boss._die() 中清空
+
+# 开「新游戏」时显式重置本局所有运行时状态，避免继承上一次（读档/游玩）残留的全局单例数据。
+# 注意：chosen_character 由 character_setup 页写入、character_gear / completed_levels / unlocked_levels 为全局养成数据，均不在此重置。
+func reset_for_new_run() -> void:
+	time_survived = 0.0
+	kills = 0
+	run_diamonds = 0
+	extra_diamonds = 0
+	last_wave_reached = 0
+	deploy_difficulty = 0
+	game_mode = ""
+	selected_level_id = ""
+	level_mode_result = ""
+	skip_reset = false
+	boss_ref = null
+	apply_default_gear()   # 关键：新游戏装备 = 空，既不继承其它存档/上一局，也不凭空发放装备
 
 func add_kill() -> void:
 	kills += 1
@@ -139,29 +190,39 @@ func complete_level(level_id: String) -> void:
 			unlocked_levels.append(id)
 	_save_level_progress()
 
-func _load_level_progress() -> void:
-	if not FileAccess.file_exists(LEVEL_PROGRESS_PATH):
-		return
-	var file := FileAccess.open(LEVEL_PROGRESS_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
-	if err != OK:
-		return
-	var data: Dictionary = json.get_data() as Dictionary
-	completed_levels.assign(data.get("completed_levels", []))
-	unlocked_levels.assign(data.get("unlocked_levels", ["level_01"]))
-	level_stars = data.get("level_stars", {})
-
 func _save_level_progress() -> void:
-	var data := {
-		"completed_levels": completed_levels,
-		"unlocked_levels": unlocked_levels,
-		"level_stars": level_stars,
-	}
-	var file := FileAccess.open(LEVEL_PROGRESS_PATH, FileAccess.WRITE)
-	if file == null:
-		push_error("RunStats: failed to save level progress.")
+	if SaveManager == null:
 		return
-	file.store_string(JSON.stringify(data))
+	SaveManager.completed_levels = completed_levels.duplicate()
+	SaveManager.unlocked_levels = unlocked_levels.duplicate()
+	SaveManager.save()
+
+func save_character_gear() -> void:
+	if SaveManager == null:
+		return
+	SaveManager.character_gear = character_gear.duplicate(true)
+	SaveManager.save()
+
+func load_character_gear() -> void:
+	if SaveManager == null:
+		return
+	character_gear = SaveManager.character_gear.duplicate(true)
+
+func restore_from_save(data: Dictionary) -> void:
+	time_survived = data.get("time_survived", 0.0)
+	kills = data.get("kills", 0)
+	last_wave_reached = data.get("last_wave_reached", 0)
+	chosen_character = data.get("chosen_character", chosen_character)
+	deploy_difficulty = data.get("deploy_difficulty", deploy_difficulty)
+	game_mode = data.get("game_mode", game_mode)
+	selected_level_id = data.get("selected_level_id", selected_level_id)
+	var gear = data.get("equipped_gear", {})
+	if gear is Dictionary:
+		equipped_gear = gear.duplicate(true)
+	run_diamonds = data.get("run_diamonds", 0)
+	extra_diamonds = run_diamonds - get_pending_diamonds()   # 反推局内即时到手部分，避免读档后 HUD 数字倒退
+	if extra_diamonds < 0:
+		extra_diamonds = 0
+	# 兜底：还原发生在 main.gd 的 _ready，而 _process 会在下一帧检测到「场景变为 Main」并调用 _reset()，
+	# 那会把刚恢复的存活时间/击杀/波次全部清零。置 skip_reset 让这一次场景切换跳过重置。
+	skip_reset = true

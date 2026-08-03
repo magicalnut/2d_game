@@ -17,11 +17,13 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+SaveManager="*res://Assets/Scripts/save_manager.gd"
 WaveManager="*res://Assets/Scripts/wave_manager.gd"
 RunStats="*res://Assets/Scripts/run_stats.gd"
 SkillManager="*res://Assets/Scripts/skill_manager.gd"
 FXManager="*res://Assets/Scripts/fx_manager.gd"
 EquipmentManager="*res://Assets/Scripts/equipment_manager.gd"
+AudioManager="*res://Assets/Scripts/audio_manager.gd"
 
 [display]
 
@@ -73,3 +75,4 @@ shoot={
 
 textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
+rendering/2d/snap/snap_2d_transforms_to_pixel=true

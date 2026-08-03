@@ -20,7 +20,8 @@ var _exp_tick_bg: ColorRect
 # 顶部元素
 var _wave_label: Label
 var _timer_label: Label
-var _kill_label: Label
+var _kill_label: Label          # 右上：击杀数（数字）
+var _diamond_label: Label       # 右上：钻石数（数字）
 var _boss_bar: ProgressBar
 var _boss_label: Label
 var _gear_slots: Array[Control] = []   # 底部6装备槽微型图标
@@ -87,32 +88,81 @@ func _build_ui() -> void:
 	_timer_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_timer_label.add_theme_constant_override("outline_size", 2)
 
-	# 击杀数（右上）
+	# ——— 右上角状态：两行（图标 + 右侧数字）———
+	# 第 1 行：击杀数（骷髅图标 + 数字）；第 2 行：钻石数（青钻图标 + 数字）
+	var stat_box := VBoxContainer.new()
+	root.add_child(stat_box)
+	stat_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	stat_box.offset_right = -12.0
+	stat_box.offset_top = 8.0
+	stat_box.offset_left = -200.0
+	stat_box.offset_bottom = 52.0
+	stat_box.alignment = BoxContainer.ALIGNMENT_END   # 行整体靠右
+	stat_box.add_theme_constant_override("separation", 6)
+	stat_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# 击杀行
+	var kill_row := HBoxContainer.new()
+	kill_row.add_theme_constant_override("separation", 6)
+	kill_row.alignment = BoxContainer.ALIGNMENT_END
+	kill_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var kill_icon := TextureRect.new()
+	kill_icon.texture = preload("res://Assets/Sprites/UI/Icons/icon_kill.png")
+	kill_icon.custom_minimum_size = Vector2(20, 20)
+	kill_icon.size = Vector2(20, 20)
+	kill_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+	kill_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	kill_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_kill_label = Label.new()
-	root.add_child(_kill_label)
-	_kill_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_kill_label.offset_right = -12.0
-	_kill_label.offset_top = 8.0
-	_kill_label.offset_left = -200.0
-	_kill_label.offset_bottom = 30.0
+	_kill_label.text = "0"
 	_kill_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_kill_label.text = "击杀 0"
-	_kill_label.add_theme_font_size_override("font_size", 15)
+	_kill_label.add_theme_font_size_override("font_size", 16)
 	_kill_label.add_theme_color_override("font_color", Color(0.95, 0.7, 0.4))
 	_kill_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_kill_label.add_theme_constant_override("outline_size", 2)
+	_kill_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	kill_row.add_child(kill_icon)
+	kill_row.add_child(_kill_label)
+	stat_box.add_child(kill_row)
 
-	# BOSS 血条（顶部居中，波次/计时下方，默认隐藏）
+	# 钻石行
+	var dia_row := HBoxContainer.new()
+	dia_row.add_theme_constant_override("separation", 6)
+	dia_row.alignment = BoxContainer.ALIGNMENT_END
+	dia_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dia_icon := TextureRect.new()
+	dia_icon.texture = preload("res://Assets/Sprites/UI/Icons/icon_diamond.png")
+	dia_icon.custom_minimum_size = Vector2(20, 20)
+	dia_icon.size = Vector2(20, 20)
+	dia_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+	dia_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	dia_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_diamond_label = Label.new()
+	_diamond_label.text = "0"
+	_diamond_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_diamond_label.add_theme_font_size_override("font_size", 16)
+	_diamond_label.add_theme_color_override("font_color", Color(0.6, 0.9, 0.95))
+	_diamond_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	_diamond_label.add_theme_constant_override("outline_size", 2)
+	_diamond_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dia_row.add_child(dia_icon)
+	dia_row.add_child(_diamond_label)
+	stat_box.add_child(dia_row)
+
+	# BOSS 名字（血条左侧，右对齐贴着血条；boss 出现时显示）
 	_boss_label = Label.new()
 	root.add_child(_boss_label)
-	_boss_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_boss_label.offset_top = 58.0
-	_boss_label.offset_bottom = 76.0
-	_boss_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_boss_label.text = "BOSS"
+	_boss_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_boss_label.offset_left = 20.0
+	_boss_label.offset_right = 190.0   # 紧贴血条左侧（血条 offset_left = 200）
+	_boss_label.offset_top = 78.0
+	_boss_label.offset_bottom = 94.0
+	_boss_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_boss_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_boss_label.text = ""   # 构建时 boss 未出现；名字在 _process 从 boss_ref.boss_name 动态填入
 	_boss_label.visible = false
-	_boss_label.add_theme_font_size_override("font_size", 13)
-	_boss_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	_boss_label.add_theme_font_size_override("font_size", 20)
+	_boss_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
 	_boss_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_boss_label.add_theme_constant_override("outline_size", 3)
 
@@ -364,18 +414,26 @@ func _process(_delta: float) -> void:
 	if _exp_bar.size.x > 0.0:
 		var r: float = clamp(_exp_bar.value, 0.0, 1.0)
 		_exp_tick_bg.position.x = clamp(r * _exp_bar.size.x - tick_half, 0.0, _exp_bar.size.x - tick_w)
-	# 计时 / 击杀（RunStats 单例）
+	# 计时 / 击杀 / 钻石（RunStats 单例）—— 数值滚动 + 变化弹跳
 	if RunStats != null:
 		_timer_label.text = RunStats.get_time_string()
-		_kill_label.text = "击杀 %d" % RunStats.kills
-		if RunStats.boss_ref != null and is_instance_valid(RunStats.boss_ref):
-			_boss_bar.visible = true
-			_boss_label.visible = true
-			if RunStats.boss_ref.has_method("get_hp_ratio"):
-				_boss_bar.value = RunStats.boss_ref.get_hp_ratio()
+		_animate_stat(_kill_label, RunStats.kills, _delta)
+		_animate_stat(_diamond_label, RunStats.run_diamonds, _delta)
+	if RunStats != null and RunStats.boss_ref != null and is_instance_valid(RunStats.boss_ref):
+		_boss_bar.visible = true
+		_boss_label.visible = true
+		_wave_label.visible = true    # boss 战期间照常显示波次：波次(y8~30)/计时(y32~54)/boss血条(y78~94) 三行互不重叠
+		var bn: Variant = RunStats.boss_ref.get("boss_name")
+		if bn == null or bn == "":
+			_boss_label.text = "BOSS"
 		else:
-			_boss_bar.visible = false
-			_boss_label.visible = false
+			_boss_label.text = bn
+		if RunStats.boss_ref.has_method("get_hp_ratio"):
+			_boss_bar.value = RunStats.boss_ref.get_hp_ratio()
+	else:
+		_boss_bar.visible = false
+		_boss_label.visible = false
+		_wave_label.visible = true
 	# 波次标签（WaveManager 单例）
 	if WaveManager != null and WaveManager.has_method("get_wave_label"):
 		_wave_label.text = WaveManager.get_wave_label()
@@ -383,6 +441,38 @@ func _process(_delta: float) -> void:
 	_refresh_gear_slots()
 	# 水晶血量+星级
 	_update_crystal_panel()
+
+func _animate_stat(label: Label, target: int, delta: float) -> void:
+	## 右上角数值动态感：数值平滑滚动(count-up) + 变化瞬间放大回弹 + 提亮闪。
+	## 动画状态存放在 label 的 meta，无需额外成员变量，击杀/钻石两处复用。
+	if not label.has_meta("disp"):
+		label.set_meta("disp", float(target))
+		label.set_meta("bump", 0.0)
+		label.set_meta("last_t", target)
+	var disp: float = label.get_meta("disp")
+	var bump: float = label.get_meta("bump")
+	var last_t: int = label.get_meta("last_t")
+	if target != last_t:
+		bump = 1.0            # 目标改变 -> 触发一次弹跳
+		last_t = target
+	if disp != float(target):
+		# count-up：差值越大步长越快，保证大跳也顺滑
+		var step: float = max(1.0, abs(float(target) - disp) * delta * 12.0)
+		disp = move_toward(disp, float(target), step)
+		label.text = str(int(round(disp)))
+	if bump > 0.0:
+		bump = max(0.0, bump - delta * 5.0)   # ~0.2s 衰减
+		var s: float = 1.0 + sin(bump * PI) * 0.35
+		label.pivot_offset = label.size * 0.5
+		label.scale = Vector2(s, s)
+		var g: float = bump                     # 0..1 提亮闪
+		label.modulate = Color(1.0 + g * 0.8, 1.0 + g * 0.8, 1.0 + g * 0.8)
+	else:
+		label.scale = Vector2(1.0, 1.0)
+		label.modulate = Color(1.0, 1.0, 1.0)
+	label.set_meta("disp", disp)
+	label.set_meta("bump", bump)
+	label.set_meta("last_t", last_t)
 
 func _build_gear_slots() -> void:
 	## 在左下角状态面板上方构建6个微型装备槽图标

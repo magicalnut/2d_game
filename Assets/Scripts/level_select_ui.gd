@@ -3,6 +3,7 @@ extends Control
 
 const MAIN_SCENE := "res://Scenes/main.tscn"
 const MENU_SCENE := "res://Scenes/menu.tscn"
+const SETUP_SCENE := "res://Scenes/character_setup.tscn"
 const LEVEL_DATA_PATH := "res://Assets/Resources/Levels/"
 const NOVICE_LEVELS: Array[String] = ["level_01", "level_02", "level_03"]
 const OFFICIAL_LEVELS: Array[String] = []   # 正式关卡内容待定
@@ -66,7 +67,6 @@ func _build_top_bar() -> void:
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_theme_constant_override("separation", 14)
 	top.add_child(_spacer(18.0))
-	top.add_child(_make_title_styled("关卡挑战", _fnt))
 	add_child(top)
 
 func _build_bottom_bar() -> void:
@@ -76,8 +76,7 @@ func _build_bottom_bar() -> void:
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.add_theme_constant_override("separation", 10)
 	bottom.add_child(_spacer(24.0))
-	var back := _make_img_button(BTN_DIR + "back_to_menu.png", "返回主菜单", _on_back,
-		Color(0.18, 0.14, 0.22), Color(0.78, 0.45, 0.98), Vector2(240.0, 64.0), 0.8)
+	var back := _make_card_button("返回战备", _on_back, UIColors.WHITE, Vector2(240.0, 64.0))
 	var back_row := HBoxContainer.new()
 	back_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	back_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -419,10 +418,10 @@ func _make_level_card(level_id: String, data: LevelData, unlocked: bool, complet
 	badge.add_theme_font_size_override("font_size", 11)
 	if completed:
 		badge.text = "✓ 已通关"
-		badge.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55))
+		badge.add_theme_color_override("font_color", UIColors.GOLD)
 	elif not unlocked:
 		badge.text = "🔒 未解锁"
-		badge.add_theme_color_override("font_color", Color(0.65, 0.65, 0.68))
+		badge.add_theme_color_override("font_color", UIColors.MUTED)
 	else:
 		badge.text = ""
 	badge.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -610,7 +609,12 @@ func _on_level_selected(level_id: String) -> void:
 	get_tree().change_scene_to_file(MAIN_SCENE)
 
 func _on_back() -> void:
-	get_tree().change_scene_to_file(MENU_SCENE)
+	# 返回战备页（选择装备页面），而非角色选择转盘：置 back_to_loadout 标志，
+	# character_setup._ready 检测到后会跳过角色转盘、直接停在整备（选择装备）视图。
+	# active_slot 在新游戏/读档两种入口下均已绑定为有效槽位，故此处条件恒满足。
+	if SaveManager != null and SaveManager.active_slot >= 0:
+		SaveManager.back_to_loadout = true
+	get_tree().change_scene_to_file(SETUP_SCENE)
 
 func _load_font() -> Font:
 	for p in [FONT_DIR + "title.ttf", FONT_DIR + "title.otf"]:
@@ -724,6 +728,31 @@ func _make_title_styled(text: String, fnt: Font) -> Control:
 
 	_title_labels = [glow_t, shadow_t, body_t]
 	return wrap
+
+# 角色卡面背景按钮（与全局其它按钮统一）：系统字体 + info_panel 9 宫格背景
+func _make_card_button(text: String, cb: Callable, accent: Color, min_sz: Vector2 = Vector2(240.0, 64.0)) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = min_sz
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", 26)
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(PANEL_TEX_PATH)
+	sb.texture_margin_left = 28.0
+	sb.texture_margin_top = 28.0
+	sb.texture_margin_right = 28.0
+	sb.texture_margin_bottom = 28.0
+	b.add_theme_stylebox_override("normal", sb)
+	var sbh := sb.duplicate()
+	sbh.modulate_color = Color(1.15, 1.15, 1.2)
+	b.add_theme_stylebox_override("hover", sbh)
+	var sbp := sbh.duplicate()
+	b.add_theme_stylebox_override("pressed", sbp)
+	b.add_theme_color_override("font_color", accent)
+	b.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	b.add_theme_constant_override("outline_size", 3)
+	b.pressed.connect(cb)
+	return b
 
 func _make_img_button(tex_path: String, text: String, cb: Callable, normal_col: Color, border_col: Color, min_size: Vector2 = Vector2(240.0, 64.0), scale_factor: float = 1.0) -> Control:
 	if ResourceLoader.exists(tex_path):

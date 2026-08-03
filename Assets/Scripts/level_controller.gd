@@ -103,23 +103,6 @@ func _ready() -> void:
 	if RunStats != null and SkillManager != null:
 		SkillManager.grant(RunStats.get_character_def().get("start_weapon", ""))
 
-	# 装备初始保底
-	if RunStats != null and EquipmentManager != null:
-		var char_id: String = RunStats.chosen_character
-		if RunStats.character_gear.has(char_id):
-			RunStats.equipped_gear = RunStats.character_gear[char_id].duplicate(true)
-		if RunStats.equipped_gear.is_empty():
-			var defaults: Dictionary = {
-				"wanderer": {"rune": "rune_of_wind", "amulet": "amulet_of_vitality"},
-				"brute":    {"rune": "rune_of_fire",  "amulet": "amulet_of_stone"},
-				"mage":     {"rune": "rune_of_fire",  "amulet": "amulet_of_vitality"},
-				"ranger":   {"rune": "rune_of_wind",  "amulet": "amulet_of_stone"},
-			}
-			if defaults.has(char_id):
-				for slot in defaults[char_id].keys():
-					if EquipmentManager.is_slot_unlocked(slot):
-						RunStats.equipped_gear[slot] = EquipmentManager.create_instance(defaults[char_id][slot], 1, 1)
-
 	# HUD
 	_hud = CanvasLayer.new()
 	_hud.name = "HUD"
@@ -160,10 +143,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_pause()
 
 func _toggle_pause() -> void:
-	get_tree().paused = not get_tree().paused
+	var t := get_tree()
+	if t != null:
+		t.paused = not t.paused
 	if _pause_overlay == null:
 		_create_pause_overlay()
-	_pause_overlay.visible = get_tree().paused
+	var _t := get_tree()
+	_pause_overlay.visible = _t != null and _t.paused
 
 func _create_pause_overlay() -> void:
 	_pause_overlay = CanvasLayer.new()
@@ -197,11 +183,14 @@ func _create_pause_overlay() -> void:
 	menu_btn.custom_minimum_size = Vector2(240.0, 64.0)
 	menu_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	menu_btn.add_theme_font_size_override("font_size", 26)
-	menu_btn.pressed.connect(func():
-		get_tree().paused = false
-		get_tree().change_scene_to_file("res://Scenes/menu.tscn")
-	)
+	menu_btn.pressed.connect(_on_level_menu)
 	vbox.add_child(menu_btn)
+
+func _on_level_menu() -> void:
+	var t := get_tree()
+	if t != null:
+		t.paused = false
+		t.change_scene_to_file("res://Scenes/menu.tscn")
 
 func _process(delta: float) -> void:
 	if _banner_timer > 0.0: _banner_timer -= delta
@@ -345,7 +334,7 @@ func _spawn_boss() -> void:
 	add_child(b); _active_boss = b
 	if RunStats != null:
 		RunStats.boss_ref = b
-	_show_banner("⚠ %s 降临 ⚠" % d["name"], 2.0)
+	# boss 名字改由 HUD 顶部 _boss_label 显示，不再单独弹横幅（避免与顶部重复）
 
 func _show_victory() -> void:
 	_state = "victory"; _show_banner("全部通关！", 5.0)

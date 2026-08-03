@@ -59,7 +59,7 @@ func _build_ui() -> void:
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.add_theme_font_size_override("font_size", 34)
-	_title.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	_title.add_theme_color_override("font_color", UIColors.GOLD)
 	_title.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_title.add_theme_constant_override("outline_size", 4)
 
@@ -96,7 +96,7 @@ func _build_ui() -> void:
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_hint.add_theme_font_size_override("font_size", 20)
-	_hint.add_theme_color_override("font_color", Color(0.70, 0.74, 0.82))
+	_hint.add_theme_color_override("font_color", UIColors.GRAY)
 
 func _on_special_choice() -> void:
 	if _overlay.visible:
@@ -183,7 +183,8 @@ func _show_cards() -> void:
 		else:
 			_setup_gear_card(card, content, ch)
 	_overlay.visible = true
-	get_tree().paused = true
+	var _t := get_tree()
+	if _t != null: _t.paused = true
 
 func _setup_skill_card(card: Button, content: MarginContainer, ch: Dictionary) -> void:
 	var id: String = ch["id"]
@@ -220,7 +221,7 @@ func _setup_skill_card(card: Button, content: MarginContainer, ch: Dictionary) -
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.add_theme_font_size_override("font_size", 26)
-	name_lbl.add_theme_color_override("font_color", Color(0.96, 0.98, 1.0))
+	name_lbl.add_theme_color_override("font_color", UIColors.WHITE)
 	name_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	name_lbl.add_theme_constant_override("outline_size", 2)
 
@@ -233,7 +234,7 @@ func _setup_skill_card(card: Button, content: MarginContainer, ch: Dictionary) -
 		var cur: int = int(ch["stars"])
 		var mx: int = int(def["max_stars"])
 		star_lbl.text = "★".repeat(cur) + "☆".repeat(mx - cur)
-		star_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+		star_lbl.add_theme_color_override("font_color", UIColors.GOLD)
 
 	var bot_sp := Control.new()
 	bot_sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -269,7 +270,7 @@ func _setup_gear_card(card: Button, content: MarginContainer, ch: Dictionary) ->
 	slot_lbl.text = EquipmentManager.SLOT_NAMES.get(slot_id, slot_id)
 	slot_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	slot_lbl.add_theme_font_size_override("font_size", 18)
-	slot_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+	slot_lbl.add_theme_color_override("font_color", UIColors.GRAY)
 
 	# 装备名称（带稀有度色）
 	var name_lbl := Label.new()
@@ -310,7 +311,7 @@ func _setup_gear_card(card: Button, content: MarginContainer, ch: Dictionary) ->
 		stats_lbl.text = stats_str.strip_edges()
 		stats_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		stats_lbl.add_theme_font_size_override("font_size", 16)
-		stats_lbl.add_theme_color_override("font_color", Color(0.92, 0.94, 0.98))
+		stats_lbl.add_theme_color_override("font_color", UIColors.WHITE)
 
 	# 风味文本
 	var flavor: String = def.get("flavor", "")
@@ -320,7 +321,7 @@ func _setup_gear_card(card: Button, content: MarginContainer, ch: Dictionary) ->
 		flavor_lbl.text = "\"%s\"" % flavor
 		flavor_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		flavor_lbl.add_theme_font_size_override("font_size", 13)
-		flavor_lbl.add_theme_color_override("font_color", Color(0.6, 0.62, 0.65))
+		flavor_lbl.add_theme_color_override("font_color", UIColors.MUTED)
 
 	# 底部弹性占位
 	var bot_sp := Control.new()
@@ -348,6 +349,8 @@ func _on_card_pressed(idx: int) -> void:
 		return
 	if idx >= _current_choices.size():
 		return
+	if AudioManager != null:
+		AudioManager.play_select_sfx()
 	var ch: Dictionary = _current_choices[idx]
 	if ch["type"] == "skill":
 		var id: String = ch["id"]
@@ -367,8 +370,14 @@ func _on_card_pressed(idx: int) -> void:
 			# 无法装备：拆解为钻石（安慰奖）
 			var scrap: int = max(5, gear_inst.get("rarity", 1) * 3)
 			EquipmentManager.add_diamonds(scrap)
+			if RunStats != null:
+				# 计入「局内即时到手」，再由 refresh 汇总进 HUD 显示值。
+				# 不能直接写 run_diamonds：它每帧被 refresh_run_diamonds() 重算覆盖。
+				RunStats.extra_diamonds += scrap
+				RunStats.refresh_run_diamonds()
 	_overlay.visible = false
-	get_tree().paused = false
+	var _t := get_tree()
+	if _t != null: _t.paused = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _overlay.visible:
