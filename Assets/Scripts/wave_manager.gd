@@ -63,7 +63,7 @@ const BOSS_DEFS: Array = [
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss4/Body/"},
 		# 用户Boss5 - 虚空霸主 (HP 1100, 激光专精)
 		{"name":"虚空霸主",   "tint":Color(0.50,0.20,0.60), "hp":1100.0, "speed":100.0, "touch":4.0, "exp":45.0,
-		 "pool":[], "bullet":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanqiu.png", "bullet_px":50.0, "auto_laser_interval":3.0, "ringseq_interval":0.2, "ringseq_damage":1.0, "ringseq_speed":260.0, "sickle_interval":5.0, "sickle_tex":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanliandao.png", "sickle_px":150.0, "sickle_damage":3.0, "sickle_spin":6.283, "sickle_speed":300.0,
+		 "pool":[], "bullet":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanqiu.png", "bullet_px":60.0, "auto_laser_interval":3.0, "ringseq_interval":0.1, "ringseq_damage":1.5, "ringseq_speed":290.0, "sickle_interval":5.0, "sickle_tex":"res://Assets/Sprites/Bosses/Boss5/Bullet/huoyanliandao.png", "sickle_px":150.0, "sickle_damage":3.0, "sickle_spin":6.283, "sickle_speed":300.0,
 		 "laser_telegraph":0.7, "laser_warning":0.0, "laser_react":0.7,
 		 "laser_length":4500.0, "laser_width":48.0, "laser_damage":5.0, "laser_cooldown":3.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss5/Body/frame_01.png",

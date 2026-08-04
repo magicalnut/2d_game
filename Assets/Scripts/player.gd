@@ -306,7 +306,7 @@ func get_facing() -> String:
 
 # 角色出战：按角色属性修正基础数值（max_hp / speed），并刷新当前血量
 func apply_run_mods(hp_mult: float, speed_mult: float) -> void:
-	_base_max_hp = 15.0 * hp_mult
+	_base_max_hp = max_hp * hp_mult
 	_base_speed = 440.0 * speed_mult
 	max_hp = _base_max_hp
 	speed = _base_speed
@@ -315,7 +315,7 @@ func apply_run_mods(hp_mult: float, speed_mult: float) -> void:
 	_apply_equipment_stats()   # 重新应用装备属性（叠加在角色基础之上）
 
 # 装备属性的基础值快照（防止重复叠加）
-var _base_max_hp: float = 10000.0
+var _base_max_hp: float = 15.0
 var _base_speed: float = 440.0
 var _base_bullet_damage: float = 1.0
 var _base_bullet_speed: float = 960.0
