@@ -17,7 +17,7 @@ var _bgm_index: int = 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	AudioServer.set_bus_volume_db(0, 10.0)
+	AudioServer.set_bus_volume_db(0, -6.0)
 	# 全局 BGM
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.name = "BGM"
