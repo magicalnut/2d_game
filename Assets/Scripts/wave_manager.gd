@@ -51,7 +51,7 @@ const BOSS_DEFS: Array = [
 	 "impact":"res://Assets/Sprites/Bosses/Boss2/Impacts/impact.png"},
 	# 用户Boss3 - 暗影守卫 (HP 700, 瞄准射击, 5帧动画)
 	{"name":"暗影守卫",   "tint":Color(0.20,0.50,0.30), "hp":700.0, "speed":80.0, "touch":2.5, "exp":30.0,
-	 "pool":[], "auto_aimed_interval":1.0, "web_interval":5.0, "web_tex":"res://Assets/Sprites/Bosses/Boss3/Bullets/zhuwang_ding.png", "web_px":150.0, "web_damage":0.5, "web_speed":600.0, "web_stun":1.5, "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss3/Bullets/spider_web.png", "bullet_speed":400.0, "path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
+	 "pool":[], "auto_aimed_interval":1.0, "web_interval":4.0, "web_tex":"res://Assets/Sprites/Bosses/Boss3/Bullets/zhuwang_ding.png", "web_px":150.0, "web_damage":1.0, "web_speed":650.0, "web_stun":2.0, "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss3/Bullets/spider_web.png", "bullet_speed":400.0, "path":"res://Assets/Sprites/Bosses/Boss3/Body/frame_01.png",
 	 "animated":true, "frames_dir":"res://Assets/Sprites/Bosses/Boss3/Body/"},
 	# 用户Boss4 - 深渊领主 (HP 900, 距离环形AI, 4帧翅膀动画)
 		{"name":"深渊领主",   "tint":Color(0.70,0.30,0.20), "hp":900.0, "speed":80.0, "touch":3.5, "exp":38.0,

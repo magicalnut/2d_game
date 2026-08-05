@@ -7,21 +7,21 @@ var _boss_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _boss_active: bool = false
 
-# 全局 BGM 播放列表：all1 → all2 → all1 → ...（已移除 bgm_global）
+# 全局 BGM 播放列表
 const _BGM_PATHS := [
-	"res://Assets/Audio/bgm_global1.mp3",
-	"res://Assets/Audio/bgm_global2.mp3",
+	"res://Assets/Audio/bgm_global.mp3",
 ]
 var _bgm_index: int = 0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	AudioServer.set_bus_volume_db(0, -6.0)
+	AudioServer.set_bus_volume_db(0, 0.0)
 	# 全局 BGM
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.name = "BGM"
 	_bgm_player.bus = "Master"
+	_bgm_player.volume_db = 15.0
 	_bgm_player.finished.connect(_on_bgm_finished)
 	add_child(_bgm_player)
 	# Boss 音乐
@@ -34,6 +34,7 @@ func _ready() -> void:
 	_sfx_player = AudioStreamPlayer.new()
 	_sfx_player.name = "SFX"
 	_sfx_player.bus = "Master"
+	_sfx_player.volume_db = -5.0
 	add_child(_sfx_player)
 	# 启动全局 BGM
 	_play_global()

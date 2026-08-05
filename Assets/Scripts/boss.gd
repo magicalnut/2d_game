@@ -419,12 +419,12 @@ func _physics_process(delta: float) -> void:
 						if def.has("web_px") and _web_tex.get_width() > 0:
 							var tw: float = float(_web_tex.get_width())
 							sp.scale = Vector2.ONE * (float(def["web_px"]) / tw)
-						var cs = b.get_node_or_null("CollisionShape2D")
-						if cs != null:
-							var sz: float = 170.0 / 3.0
-							var new_shape := RectangleShape2D.new()
-							new_shape.size = Vector2(sz, sz)
-							cs.shape = new_shape
+				var cs = b.get_node_or_null("CollisionShape2D")
+				if cs != null:
+					var sz: float = 170.0 / 3.0
+					var new_shape := RectangleShape2D.new()
+					new_shape.size = Vector2(sz, sz)
+					cs.shape = new_shape
 				get_parent().add_child(b)
 	# auto melee swipe (close-range boss)
 	if _auto_melee_interval > 0.0:
