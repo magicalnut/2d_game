@@ -44,7 +44,7 @@ const BOSS_DEFS: Array = [
 	 "bullet_px":30.0, "bullet":"res://Assets/Sprites/Bosses/Boss1/Bullets/bullet.png",
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss1/Telegraphs/telegraph.png",
 	 "impact":"res://Assets/Sprites/Bosses/Boss1/Impacts/impact.png"},
-	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1800.0, "speed":100.0, "touch":4.0, "exp":45.0, "pool":[], "auto_aimed_interval":0.8, "auto_burst_interval":2.5, "bullet_speed":500.0, "bullet_dmg":3.0,
+	{"name":"德牧蓝",   "tint":Color(0.30,0.55,0.95), "hp":1800.0, "speed":100.0, "touch":2.0, "exp":45.0, "pool":[], "auto_aimed_interval":0.8, "auto_burst_interval":2.5, "bullet_speed":500.0, "bullet_dmg":3.0,
 	 "path":"res://Assets/Sprites/Bosses/Boss2/Body/body.png",
 	 "bullet":"res://Assets/Sprites/Bosses/Boss2/Bullets/bullet.png", "bullet_px":38.0, "bullet_angle_offset":PI/4,
 	 "telegraph":"res://Assets/Sprites/Bosses/Boss2/Telegraphs/telegraph.png",
